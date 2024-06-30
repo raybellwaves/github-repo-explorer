@@ -211,7 +211,7 @@ def concat_files(
     repo: str = REPO,
     states: list[str] = ["open", "closed"],
     content_types: list[str] = ["issues", "prs"],
-    llm_cols: bool = True,
+    llm_framework: str = LLM_FRAMEWORK,
     verbose: bool = False,
 ) -> None:
     from datetime import date
@@ -237,8 +237,8 @@ def concat_files(
                     if isinstance(x, list)
                     else []
                 )
-                if llm_cols:
-                    _df["LLM_title_subject"] = chat_response(
+                if llm_framework == "openai":
+                    _df["LLM_title_subject"] = _chat_response(
                         "Give me a one word summary of the following GitHub "
                         f"{repo} {content_type[:-1]} title: {_df['title'][0]}"
                     )

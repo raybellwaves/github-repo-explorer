@@ -1,7 +1,7 @@
 {
     "github_organization": "Name of the GitHub organization the repository is associatd with",
     "github_repository": "Name of the GitHub repository",
-    "llm_framework": "'openai' (there may be others in the future)",
+    "llm_framework": "'openai', 'None'",
     "repository_name": "{{cookiecutter.github_repository}}-repo-explorer",
     "snapshot_date": "YYYY-MM-DD"
 }
