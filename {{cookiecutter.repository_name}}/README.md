@@ -19,17 +19,18 @@ Remove the environment
 conda remove --name gie --all --y
 ```
 
-Scraping github options:
+Scraping github:
 ```
 cd {{cookiecutter.github_repository}}-issue-explorer
-python main.py --states open --content_types issues --verbose True
-python main.py --states closed --content_types issues --verbose True
-python main.py --states open --content_types prs --verbose True
-python main.py --states closed --content_types prs --verbose True
+python main.py scrape_gh --states open --content_types issues --verbose True
+python main.py scrape_gh --states closed --content_types issues --verbose True
+python main.py scrape_gh --states open --content_types prs --verbose True
+python main.py scrape_gh --states closed --content_types prs --verbose True
+python main.py scrape_gh --states open closed --content_types issues prs --verbose True
 ```
 
-Scrape everything
+Concating files:
 ```
-cd {{cookiecutter.github_repository}}-issue-explorer
-python main.py --states open --content_types issues --verbose True
+python main.py concat_files --states open --content_types issues --verbose True
+
 ```

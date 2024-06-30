@@ -4,6 +4,7 @@ import sys
 ORG = "{{cookiecutter.github_organization}}"
 REPO = "{{cookiecutter.github_repository}}"
 LLM_FRAMEWORK = "{{cookiecutter.llm_framework}}"
+SNAPSHOT_FOLDER = "snapshot_{{cookiecutter.snapshot_folder}}"
 
 BOTS = [
     "GPUtester",
@@ -87,7 +88,6 @@ def scrape_gh(
     GitHub shares the same structure for issues and PRs
     Note: not tested for only open issues for example
     """
-    from datetime import date
     import requests
     import json
 
@@ -122,7 +122,7 @@ def scrape_gh(
             ]
 
             for content_type in content_types:
-                folder = f"snapshot_{date.today()}/{state}_{content_type}"
+                folder = f"{SNAPSHOT_FOLDER}/{state}_{content_type}"
                 os.makedirs(folder, exist_ok=True)
                 if content_type == "issues":
                     endpoint = "issues"
@@ -132,7 +132,7 @@ def scrape_gh(
                         if "pull_request" not in issue
                     ]
                 elif content_type == "prs":
-                    pr_comment_folder = f"snapshot_{date.today()}/{state}_prs_comments"
+                    pr_comment_folder = f"{SNAPSHOT_FOLDER}/{state}_prs_comments"
                     os.makedirs(pr_comment_folder, exist_ok=True)
                     endpoint = "pulls"
                     page_issues_or_prs_filtered = [
@@ -145,7 +145,8 @@ def scrape_gh(
                     )
 
                 for issue_or_pr in tqdm(
-                    page_issues_or_prs_filtered, f"fetching {state} {content_type}"
+                    page_issues_or_prs_filtered,
+                    f"fetching {state} {content_type}",
                 ):
                     number = issue_or_pr["number"]
                     padded_number = f"{number:06d}"
