@@ -99,6 +99,8 @@ def scrape_gh(
     headers = {"Authorization": f"token {GITHUB_API_TOKEN}"}
 
     for state in states:
+        if verbose:
+            print(f"{state=}")
         page = 1
         while True:
             # the issues endpoint is misnomer and contains issues and prs.
@@ -124,6 +126,8 @@ def scrape_gh(
             ]
 
             for content_type in content_types:
+                if verbose:
+                    print(f"{content_type=}")
                 folder = f"{SNAPSHOT_FOLDER}/{state}_{content_type}"
                 os.makedirs(folder, exist_ok=True)
                 if content_type == "issues":
