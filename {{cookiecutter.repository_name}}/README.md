@@ -26,7 +26,7 @@ python main.py scrape_gh --states open --content_types issues --verbose True
 python main.py scrape_gh --states closed --content_types issues --verbose True
 python main.py scrape_gh --states open --content_types prs --verbose True
 python main.py scrape_gh --states closed --content_types prs --verbose True
-python main.py scrape_gh --states open closed --content_types issues prs --verbose False
+python main.py scrape_gh --states open closed --content_types issues prs
 ```
 
 Concating files:
