@@ -203,7 +203,7 @@ def scrape_gh(
 
 
 def hello_world():
-    pass
+    print("yo")
 
 
 def concat_files(
@@ -247,6 +247,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("function", type=str, help="Function to call")
     parser.add_argument("--states", nargs="+", type=str, default=["open", "closed"])
     parser.add_argument(
         "--content_types", nargs="+", type=str, default=["issues", "prs"]
@@ -254,10 +255,11 @@ if __name__ == "__main__":
     parser.add_argument("--verbose", type=str, default=False)
     args = parser.parse_args()
 
-    function_name = sys.argv[1]
-    if function_name == "scrape_gh":
+    if args.function == "scrape_gh":
         scrape_gh(
             states=args.states, content_types=args.content_types, verbose=args.verbose
         )
-    elif function_name == "hello_world":
+    elif args.function == "hello_world":
         hello_world()
+    else:
+        print(f"Unknown function: {args.function}")
