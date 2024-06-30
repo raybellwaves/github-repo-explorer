@@ -1,4 +1,5 @@
 import os
+import sys
 
 ORG = "{{cookiecutter.github_organization}}"
 REPO = "{{cookiecutter.github_repository}}"
@@ -201,6 +202,10 @@ def scrape_gh(
     return None
 
 
+def hello_world():
+    pass
+
+
 def concat_files(
     repo: str = REPO,
     states: list[str] = ["open", "closed"],
@@ -248,6 +253,11 @@ if __name__ == "__main__":
     )
     parser.add_argument("--verbose", type=str, default=False)
     args = parser.parse_args()
-    scrape_gh(
-        states=args.states, content_types=args.content_types, verbose=args.verbose
-    )
+
+    function_name = sys.argv[1]
+    if function_name == "scrape_gh":
+        scrape_gh(
+            states=args.states, content_types=args.content_types, verbose=args.verbose
+        )
+    elif function_name == "hello_world":
+        hello_world()

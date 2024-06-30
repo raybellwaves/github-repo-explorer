@@ -13,7 +13,7 @@ pipx install cruft uv
 
 Fill in the template like below
 ```
-cruft create git@github.com:raybellwaves/github-issue-explorer.git
+cruft create git@github.com:raybellwaves/github-repo-explorer.git
 dask, dask, openai, ENTER
 ```
 
