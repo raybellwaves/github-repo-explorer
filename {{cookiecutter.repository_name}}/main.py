@@ -4,7 +4,7 @@ import sys
 ORG = "{{cookiecutter.github_organization}}"
 REPO = "{{cookiecutter.github_repository}}"
 LLM_FRAMEWORK = "{{cookiecutter.llm_framework}}"
-SNAPSHOT_FOLDER = "snapshot_{{cookiecutter.snapshot_folder}}"
+SNAPSHOT_FOLDER = "snapshot_{{cookiecutter.snapshot_date}}"
 
 BOTS = [
     "GPUtester",
