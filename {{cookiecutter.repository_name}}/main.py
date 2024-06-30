@@ -88,6 +88,8 @@ def scrape_gh(
     GitHub shares the same structure for issues and PRs
     Note: not tested for only open issues for example
     """
+    if verbose:
+        print(f"{states=}, {content_types=}")
     import requests
     import json
 
@@ -154,6 +156,8 @@ def scrape_gh(
                         f"{folder}/{content_type[:-1]}_detail_{padded_number}.json"
                     )
                     if os.path.exists(filename):
+                        if verbose:
+                            print(f"{filename} already exists")
                         continue
                     else:
                         detail_url = f"{GH_API_URL_PREFIX}{endpoint}/{number}"
@@ -179,6 +183,8 @@ def scrape_gh(
                                     f"comments_{padded_number}.json"
                                 )
                                 if os.path.exists(filename):
+                                    if verbose:
+                                        print(f"{filename} already exists")
                                     continue
                                 else:
                                     comments_url = (
