@@ -1,0 +1,6 @@
+{
+    "github_organization": "Name of the GitHub organization the repository is associatd with",
+    "github_repository": "Name of the GitHub repository",
+    "llm_framework": "'openai' (there may be others in the future)",
+    "repository_name": "{{cookiecutter.github_repository}}-issue-explorer"
+}
