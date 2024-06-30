@@ -1,4 +1,4 @@
-# github-issue-explorer
+# github-repo-explorer
 
 ## What does this do?
 

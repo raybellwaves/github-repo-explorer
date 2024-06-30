@@ -1,4 +1,4 @@
-# {{cookiecutter.github_repository}}-issue-explorer
+# {{cookiecutter.repository_name}}
 
 ## CLI commands
 
@@ -14,6 +14,7 @@ mamba create -n gie python=3.11 --y && \
   uv pip install -r requirements-dev.txt --find-links https://download.pytorch.org/whl/cpu
 ```
 
+Remove the environment
 ```
 conda remove --name gie --all --y
 ```
@@ -27,7 +28,7 @@ python main.py --states open --content_types prs --verbose True
 python main.py --states closed --content_types prs --verbose True
 ```
 
-Scrape open and closed issues and open and closed prs
+Scrape everything
 ```
 cd {{cookiecutter.github_repository}}-issue-explorer
 python main.py --states open --content_types issues --verbose True
