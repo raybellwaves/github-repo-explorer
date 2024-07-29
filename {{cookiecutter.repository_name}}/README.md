@@ -22,15 +22,21 @@ conda remove --name gie --all --y
 Scraping github:
 ```
 cd {{cookiecutter.github_repository}}-issue-explorer
+# Scrape just open issues
 python main.py scrape_gh --states open --content_types issues --verbose True
+# Scrape just closed issues
 python main.py scrape_gh --states closed --content_types issues --verbose True
+# Scrape just open PRs
 python main.py scrape_gh --states open --content_types prs --verbose True
+# Scrape just closed PRs
 python main.py scrape_gh --states closed --content_types prs --verbose True
+# Scrape open and closed issues and open and closed PRs
 python main.py scrape_gh --states open closed --content_types issues prs
 ```
 
 Concating files:
 ```
+# Concat just open issues
 python main.py concat_files --states open --content_types issues --verbose True
 
 ```

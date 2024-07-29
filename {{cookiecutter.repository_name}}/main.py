@@ -74,7 +74,6 @@ def _agent_response(agent, content):
     return agent.invoke(content)["output"]
 
 
-# Core functions
 def scrape_gh(
     org: str = ORG,
     repo: str = REPO,
@@ -213,10 +212,6 @@ def scrape_gh(
     return None
 
 
-def hello_world():
-    print("yo")
-
-
 def concat_files(
     repo: str = REPO,
     states: list[str] = ["open", "closed"],
@@ -252,6 +247,25 @@ def concat_files(
                         "Give me a one word summary of the following GitHub "
                         f"{repo} {content_type[:-1]} title: {_df['title'][0]}"
                     )
+            df = pd.concat([df, _df], axis=0).reset_index(drop=True)
+            df = df.rename(
+                columns={
+                    "comments": "n_comments",
+                    "user.login": "issue_user.login",
+                    "body": "issue_text",
+                    "reactions.total_count": "issue_reactions.total_count",
+                    "reactions.+1": "issue_reactions.+1",
+                    "reactions.-1": "issue_reactions.-1",
+                    "reactions.laugh": "issue_reactions.laugh",
+                    "reactions.hooray": "issue_reactions.hooray",
+                    "reactions.confused": "issue_reactions.confused",
+                    "reactions.heart": "issue_reactions.heart",
+                    "reactions.rocket": "issue_reactions.rocket",
+                    "reactions.eyes": "issue_reactions.eyes",
+                    "created_at": "issue_created_at",
+                    "updated_at": "issue_updated_at",
+                }
+            )
 
 
 if __name__ == "__main__":
