@@ -16,6 +16,31 @@ BOTS = [
     "review-notebook-app[bot]",
 ]
 
+ISSUE_PR_COLUMNS = [
+    "author_association",
+    "body",
+    "comments",
+    "created_at",
+    "label_names",
+    "number",
+    "state",
+    "title",
+    "url",
+    "user.login",
+]
+
+REACTION_COLUMNS = [
+    "reactions.+1",
+    "reactions.-1",
+    "reactions.confused",
+    "reactions.eyes",
+    "reactions.heart",
+    "reactions.hooray",
+    "reactions.laugh",
+    "reactions.rocket",
+    "reactions.total_count",
+]
+
 try:
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 except KeyError:
@@ -181,8 +206,26 @@ def scrape_gh(
                             break
                         # There is also a timeline API that could be included.
                         # This contains information on cross posting issues or prs
+
+                        # Reactions for PRs can be found in the issue endpoint
+                        if content_type == "prs":
+                            detail_url2 = f"{GH_API_URL_PREFIX}issues/{number}"
+                            if verbose:
+                                print(f"{detail_url2=}")
+                            detail_response2 = requests.get(
+                                detail_url2, headers=headers, timeout=10
+                            )
+                            if not _status_code_checks(detail_response2.status_code):
+                                break
+                            detail_response2_json = detail_response2.json()
+                            if not _json_content_check(detail_response2_json):
+                                break
+                            detail_response_json["reactions"] = detail_response2_json[
+                                "reactions"
+                            ]
                         with open(filename, "w") as f:
                             json.dump(detail_response_json, f, indent=4)
+                        # Reactions for PRs can be found in the issue endpo
                         # Get comments data
                         if detail_response_json["comments"] > 0:
                             filename = (
@@ -212,6 +255,76 @@ def scrape_gh(
                                     json.dump(comments_response_json, f, indent=4)
             page += 1
     return None
+
+
+def create_df(
+    repo: str = REPO,
+    states: list[str] = ["open", "closed"],
+    content_types: list[str] = ["issues", "prs"],
+    llm_framework: str = LLM_FRAMEWORK,
+) -> None:
+    """
+    Concat data into a dataframe.
+
+    Row UUID is content_type number + comment
+    """
+    import json
+    import os
+    import pandas as pd
+
+    from tqdm.auto import tqdm
+
+    for state in states:
+        for content_type in content_types:
+            folder = f"{SNAPSHOT_FOLDER}/{state}_{content_type}"
+            files = sorted(os.listdir(folder))
+            df = pd.DataFrame()
+            for file in tqdm(files, f"concatenating {state} {content_type}"):
+                padded_number = file.split("_")[-1].split(".")[0]
+                with open(f"{folder}/{file}", "r") as f:
+                    data = json.load(f)
+                _df = pd.json_normalize(data)
+                if _df["body"][0] is None:
+                    _df["body"] = ""
+                _df["label_names"] = _df["labels"].apply(
+                    lambda x: [label["name"] for label in x]
+                    if isinstance(x, list)
+                    else []
+                )
+                _df["created_at"] = pd.Timestamp(_df["created_at"][0])
+                _df["url"] = _df["url"][0].replace(
+                    "https://api.github.com/repos/", "https://github.com/"
+                )
+                _df["user.url"] = _df["user.url"][0].replace(
+                    "https://api.github.com/users/", "https://github.com/"
+                )
+                if llm_framework == "openai":
+                    _df["LLM_title_subject"] = _chat_response(
+                        "Give me a one word summary of the following GitHub "
+                        f"{repo} {content_type[:-1]} title: {_df['title'][0]}"
+                    )
+                # Keep useful columns
+                if llm_framework != "None":
+                    _df_filtered = _df[ISSUE_PR_COLUMNS + "LLM_title_subject"]
+                else:
+                    _df_filtered = _df[ISSUE_PR_COLUMNS]
+                _df_filtered = _df_filtered.rename({"comments": "n_comments"})
+
+                # Read comment data if exists
+                comment_file = (
+                    f"{SNAPSHOT_FOLDER}/{state}_{content_type}_comments/"
+                    f"comments_{padded_number}.json"
+                )
+                if os.path.exists(comment_file):
+                    with open(comment_file, "r") as f:
+                        data = json.load(f)
+                    _df2 = pd.json_normalize(data)
+                    _df2["created_at"] = pd.to_datetime(_df2["created_at"])
+                    _df2["user.url"] = _df2["user.url"].str.replace(
+                        "https://api.github.com/users/", "https://github.com/"
+                    )
+                    _df2_filtered = _df2[["body", "created_at", "user.login"]]
+                    _df2_filtered = _df2_filtered.rename({"body": "comment"})
 
 
 def concat_files(
