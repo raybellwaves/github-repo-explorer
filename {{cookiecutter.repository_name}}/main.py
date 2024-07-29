@@ -82,8 +82,13 @@ def scrape_gh(
     verbose: bool = False,
 ) -> None:
     """
-    Puts data into 4 folders:
+    Puts data into eight folders:
     open_issues, closed_issues, open_prs, closed_prs
+    These contain the titles and body
+
+    open_issues_comments, closed_issues_comments, open_prs_comments, closed_prs_comments
+    These contain the comments.
+
     GitHub shares the same structure for issues and PRs
     Note: not tested for only open issues for example
     """
@@ -129,6 +134,8 @@ def scrape_gh(
                     print(f"{content_type=}")
                 folder = f"{SNAPSHOT_FOLDER}/{state}_{content_type}"
                 os.makedirs(folder, exist_ok=True)
+                comment_folder = f"{SNAPSHOT_FOLDER}/{state}_{content_type}_comments"
+                os.makedirs(comment_folder, exist_ok=True)
                 if content_type == "issues":
                     endpoint = "issues"
                     page_issues_or_prs_filtered = [
@@ -137,8 +144,6 @@ def scrape_gh(
                         if "pull_request" not in issue
                     ]
                 elif content_type == "prs":
-                    pr_comment_folder = f"{SNAPSHOT_FOLDER}/{state}_prs_comments"
-                    os.makedirs(pr_comment_folder, exist_ok=True)
                     endpoint = "pulls"
                     page_issues_or_prs_filtered = [
                         pr for pr in page_issues_or_prs if "pull_request" in pr
@@ -178,36 +183,33 @@ def scrape_gh(
                         # This contains information on cross posting issues or prs
                         with open(filename, "w") as f:
                             json.dump(detail_response_json, f, indent=4)
-                        if content_type == "prs":
-                            # Grab the PR comments as they are in the issue endpoint
-                            if detail_response_json["comments"] > 0:
-                                filename = (
-                                    f"{pr_comment_folder}/"
-                                    f"comments_{padded_number}.json"
+                        # Get comments data
+                        if detail_response_json["comments"] > 0:
+                            filename = (
+                                f"{comment_folder}/" f"comments_{padded_number}.json"
+                            )
+                            if os.path.exists(filename):
+                                if verbose:
+                                    print(f"{filename} already exists")
+                                continue
+                            else:
+                                comments_url = (
+                                    f"{GH_API_URL_PREFIX}issues/{number}/comments"
                                 )
-                                if os.path.exists(filename):
-                                    if verbose:
-                                        print(f"{filename} already exists")
-                                    continue
-                                else:
-                                    comments_url = (
-                                        f"{GH_API_URL_PREFIX}issues/{number}/comments"
-                                    )
-                                    if verbose:
-                                        print(f"{comments_url=}")
-                                    comments_response = requests.get(
-                                        comments_url, headers=headers, timeout=10
-                                    )
-                                    if not _status_code_checks(
-                                        comments_response.status_code
-                                    ):
-                                        break
-                                    comments_response_json = comments_response.json()
-                                    if not _json_content_check(comments_response_json):
-                                        break
-
-                                    with open(filename, "w") as f:
-                                        json.dump(comments_response_json, f, indent=4)
+                                if verbose:
+                                    print(f"{comments_url=}")
+                                comments_response = requests.get(
+                                    comments_url, headers=headers, timeout=10
+                                )
+                                if not _status_code_checks(
+                                    comments_response.status_code
+                                ):
+                                    break
+                                comments_response_json = comments_response.json()
+                                if not _json_content_check(comments_response_json):
+                                    break
+                                with open(filename, "w") as f:
+                                    json.dump(comments_response_json, f, indent=4)
             page += 1
     return None
 
@@ -217,9 +219,10 @@ def concat_files(
     states: list[str] = ["open", "closed"],
     content_types: list[str] = ["issues", "prs"],
     llm_framework: str = LLM_FRAMEWORK,
-    verbose: bool = False,
 ) -> None:
-    from datetime import date
+    """
+    UUID of tables is comment
+    """
     import json
     import os
     import pandas as pd
@@ -228,11 +231,11 @@ def concat_files(
 
     for state in states:
         for content_type in content_types:
-            folder = f"snapshot_{date.today()}/{repo}_{state}_{content_type}"
-            files = os.listdir(folder)
+            folder = f"{SNAPSHOT_FOLDER}/{state}_{content_type}"
+            files = sorted(os.listdir(folder))
             df = pd.DataFrame()
-            for file in tqdm(files):
-                with open(file, "r") as f:
+            for file in tqdm(files, f"concatenating {state} {content_type}"):
+                with open(f"{folder}/{file}", "r") as f:
                     data = json.load(f)
                 _df = pd.json_normalize(data)
                 if _df["body"][0] is None:
@@ -247,25 +250,25 @@ def concat_files(
                         "Give me a one word summary of the following GitHub "
                         f"{repo} {content_type[:-1]} title: {_df['title'][0]}"
                     )
-            df = pd.concat([df, _df], axis=0).reset_index(drop=True)
-            df = df.rename(
-                columns={
-                    "comments": "n_comments",
-                    "user.login": "issue_user.login",
-                    "body": "issue_text",
-                    "reactions.total_count": "issue_reactions.total_count",
-                    "reactions.+1": "issue_reactions.+1",
-                    "reactions.-1": "issue_reactions.-1",
-                    "reactions.laugh": "issue_reactions.laugh",
-                    "reactions.hooray": "issue_reactions.hooray",
-                    "reactions.confused": "issue_reactions.confused",
-                    "reactions.heart": "issue_reactions.heart",
-                    "reactions.rocket": "issue_reactions.rocket",
-                    "reactions.eyes": "issue_reactions.eyes",
-                    "created_at": "issue_created_at",
-                    "updated_at": "issue_updated_at",
-                }
-            )
+                df = pd.concat([df, _df], axis=0).reset_index(drop=True)
+        df = df.rename(
+            columns={
+                "comments": "n_comments",
+                "user.login": "issue_user.login",
+                "body": "issue_text",
+                "reactions.total_count": "issue_reactions.total_count",
+                "reactions.+1": "issue_reactions.+1",
+                "reactions.-1": "issue_reactions.-1",
+                "reactions.laugh": "issue_reactions.laugh",
+                "reactions.hooray": "issue_reactions.hooray",
+                "reactions.confused": "issue_reactions.confused",
+                "reactions.heart": "issue_reactions.heart",
+                "reactions.rocket": "issue_reactions.rocket",
+                "reactions.eyes": "issue_reactions.eyes",
+                "created_at": "issue_created_at",
+                "updated_at": "issue_updated_at",
+            }
+        )
 
 
 if __name__ == "__main__":

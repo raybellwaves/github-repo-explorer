@@ -2,15 +2,15 @@
 
 ## CLI commands
 
-To update your repo with the latest template run:
+To update your repo with the latest template (if there are updates) run:
 ```
 cruft update
 ```
 
 Create an environment for development
 ```
-mamba create -n gie python=3.11 --y && \
-  conda activate gie && \
+mamba create -n gre python=3.11 --y && \
+  conda activate gre && \
   uv pip install -r requirements-dev.txt --find-links https://download.pytorch.org/whl/cpu
 ```
 
@@ -21,7 +21,7 @@ conda remove --name gie --all --y
 
 Scraping github:
 ```
-cd {{cookiecutter.github_repository}}-issue-explorer
+cd {{cookiecutter.github_repository}}-repo-explorer
 # Scrape just open issues
 python main.py scrape_gh --states open --content_types issues --verbose True
 # Scrape just closed issues
@@ -31,7 +31,7 @@ python main.py scrape_gh --states open --content_types prs --verbose True
 # Scrape just closed PRs
 python main.py scrape_gh --states closed --content_types prs --verbose True
 # Scrape open and closed issues and open and closed PRs
-python main.py scrape_gh --states open closed --content_types issues prs
+python main.py scrape_gh --states open closed --content_types issues prs --verbose True
 ```
 
 Concating files:
