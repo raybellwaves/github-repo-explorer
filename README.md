@@ -14,7 +14,7 @@ pipx install cruft uv
 Fill in the template like below
 ```
 cruft create git@github.com:raybellwaves/github-repo-explorer.git
-dask, dask, openai, ENTER, 2026-06-29
+dask, dask, openai, ENTER, 2024-06-29
 ```
 
 From there follow the README in the new folder you just created.
