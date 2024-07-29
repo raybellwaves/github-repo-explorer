@@ -23,13 +23,6 @@ ISSUE_PR_COLUMNS = [
     "created_at",
     "label_names",
     "number",
-    "state",
-    "title",
-    "url",
-    "user.login",
-]
-
-REACTION_COLUMNS = [
     "reactions.+1",
     "reactions.-1",
     "reactions.confused",
@@ -39,6 +32,10 @@ REACTION_COLUMNS = [
     "reactions.laugh",
     "reactions.rocket",
     "reactions.total_count",
+    "state",
+    "title",
+    "url",
+    "user.login",
 ]
 
 try:
@@ -305,10 +302,10 @@ def create_df(
                     )
                 # Keep useful columns
                 if llm_framework != "None":
-                    _df_filtered = _df[ISSUE_PR_COLUMNS + "LLM_title_subject"]
+                    _df = _df[ISSUE_PR_COLUMNS + "LLM_title_subject"]
                 else:
-                    _df_filtered = _df[ISSUE_PR_COLUMNS]
-                _df_filtered = _df_filtered.rename({"comments": "n_comments"})
+                    _df = _df[ISSUE_PR_COLUMNS]
+                _df = _df.rename({"comments": "n_comments"})
 
                 # Read comment data if exists
                 comment_file = (
@@ -323,8 +320,23 @@ def create_df(
                     _df2["user.url"] = _df2["user.url"].str.replace(
                         "https://api.github.com/users/", "https://github.com/"
                     )
-                    _df2_filtered = _df2[["body", "created_at", "user.login"]]
-                    _df2_filtered = _df2_filtered.rename({"body": "comment"})
+                    _df2 = _df2[["body", "created_at", "number", "user.login"]]
+                    _df2 = _df2.rename(
+                        {
+                            "body": "comment",
+                            "created_at": "comment_created_at",
+                            "user.login": "commenter",
+                        }
+                    )
+                else:
+                    # empty comment df
+                    _df2 = pd.DataFrame(
+                        columns=["comment", "comment_created_at", "number", "commenter"]
+                    )
+                    _df2["number"] = _df["number"]
+                # Join _df2 to _df on number
+                _df = pd.merge(_df, _df2, on="number", how="left")
+                df = pd.concat([df, _df], axis=0).reset_index(drop=True)
 
 
 def concat_files(
