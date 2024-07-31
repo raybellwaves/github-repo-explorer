@@ -11,5 +11,5 @@
         "filters": {
             "format_date": "datetime.datetime.now().strftime"
         }
-    },
+    }
 }
