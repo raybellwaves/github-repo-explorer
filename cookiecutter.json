@@ -3,5 +3,6 @@
     "github_repository": "Name of the GitHub repository",
     "llm_framework": "openai or None",
     "repository_name": "{{cookiecutter.github_repository}}-repo-explorer",
-    "created_after_date": "2000-01-01"
+    "created_after_date": "2000-01-01",
+    "current_date": "{% now 'utc', '%Y-%m-%d' %}"
 }
