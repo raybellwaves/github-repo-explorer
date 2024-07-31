@@ -458,6 +458,7 @@ def st_dashboard():
     1) Who are the users?
     """
     import pandas as pd
+    import matplotlib.pyplot as plt
     import streamlit as st
 
     st.title(f"{REPO} GitHub explorer for DevRel")
@@ -482,9 +483,33 @@ def st_dashboard():
 
     tab1, tab2 = st.tabs(["Posters", "Commenters"])
     with tab1:
-        pass
+        _df = df[["number", f"{content_type[:-1]}_user_company"]].drop_duplicates()
+        _counts = _df[f"{content_type[:-1]}_user_company"].value_counts()
+        fig, ax = plt.subplots(figsize=(10, 6))
+        _counts.plot(
+            kind="bar",
+            ax=ax,
+            xlabel="Company",
+            ylabel="Count",
+            title=f"Count of companies who create {content_type} in the {repo} GitHub repo",
+        )
+        plt.xticks(rotation=45, ha="right")
+        plt.tight_layout()
+        st.pyplot(fig)
     with tab2:
-        pass
+        _df = df[["number", f"{content_type[:-1]}_comment_user_company"]].drop_duplicates()
+        _counts = _df[f"{content_type[:-1]}_comment_user_company"].value_counts()
+        fig, ax = plt.subplots(figsize=(10, 6))
+        _counts.plot(
+            kind="bar",
+            ax=ax,
+            xlabel="Company",
+            ylabel="Count",
+            title=f"Count of companies who comment on {content_type} in the {repo} GitHub repo",
+        )
+        plt.xticks(rotation=45, ha="right")
+        plt.tight_layout()
+        st.pyplot(fig)
 
 
 
