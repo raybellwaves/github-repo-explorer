@@ -412,11 +412,18 @@ def create_df(
                 else:
                     # empty comment df
                     _df2 = pd.DataFrame(
+                        [
+                            "",
+                            pd.Timestamp(
+                                "{{cookiecutter.created_after_date}}", tz="UTC"
+                            ),
+                            "",
+                        ],
                         columns=[
                             f"{content_type[:-1]}_comment_body",
                             f"{content_type[:-1]}_comment_created_at",
                             f"{content_type[:-1]}_comment_user_login",
-                        ]
+                        ],
                     )
                     _df2["number"] = int(padded_number)
                 # Join comments with issue/pr
