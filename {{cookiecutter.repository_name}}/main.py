@@ -1,10 +1,12 @@
 import os
-import sys
+
+import pandas as pd
 
 ORG = "{{cookiecutter.github_organization}}"
 REPO = "{{cookiecutter.github_repository}}"
 LLM_FRAMEWORK = "{{cookiecutter.llm_framework}}"
 SNAPSHOT_FOLDER = "snapshot_{{cookiecutter.snapshot_date}}"
+CREATED_AFTER_DATE = pd.Timestamp("{{cookiecutter.created_after_date}}")
 
 BOTS = [
     "GPUtester",
@@ -118,6 +120,7 @@ def scrape_gh(
         print(f"{states=}, {content_types=}")
     import requests
     import json
+    import pandas as pd
 
     from tqdm.auto import tqdm
 
@@ -150,6 +153,7 @@ def scrape_gh(
                 for page_issue_or_pr in page_issues_or_prs
                 if page_issue_or_pr["user"]["login"] not in BOTS
             ]
+            # keep issues or prs after CREATED_AFTER_DATE
 
             for content_type in content_types:
                 if verbose:
