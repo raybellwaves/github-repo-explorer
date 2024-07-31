@@ -480,7 +480,12 @@ def st_dashboard():
 
     df = pd.read_parquet(f"{SNAPSHOT_FOLDER}/{status}_{content_type}.parquet")
 
-    
+    tab1, tab2 = st.tabs(["Users", "Issues/PRs"])
+    with tab1:
+        pass
+    with tab2:
+        pass
+
 
 
 
