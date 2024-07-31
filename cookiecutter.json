@@ -4,7 +4,12 @@
     "llm_framework": "openai or None",
     "repository_name": "{{cookiecutter.github_repository}}-repo-explorer",
     "created_after_date": "2000-01-01",
-    "_extensions": [
-        "jinja2_time.TimeExtension"
-    ]
+    "_jinja2_env_vars": {
+        "extensions": [
+            "jinja2.ext.do"
+        ],
+        "filters": {
+            "format_date": "datetime.datetime.now().strftime"
+        }
+    },
 }

@@ -5,7 +5,7 @@ import pandas as pd
 ORG = "{{cookiecutter.github_organization}}"
 REPO = "{{cookiecutter.github_repository}}"
 LLM_FRAMEWORK = "{{cookiecutter.llm_framework}}"
-SNAPSHOT_FOLDER = "snapshot_{{ '%Y-%m-%d' | strftime }}"
+SNAPSHOT_FOLDER = "snapshot_{{ '%Y-%m-%d' | format_date }}"
 CREATED_AFTER_DATE = pd.Timestamp("{{cookiecutter.created_after_date}}")
 
 BOTS = [
