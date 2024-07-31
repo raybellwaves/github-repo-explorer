@@ -431,7 +431,7 @@ def create_df(
                 )
                 for col in USER_COLUMNS:
                     _df[f"{content_type[:-1]}_{col}"] = _df[f"user_{col}"]
-                    del _df[col]
+                    del _df[f"user_{col}"]
                 # Get info about commenters
                 _df = _df.merge(
                     users_df,
@@ -441,7 +441,7 @@ def create_df(
                 )
                 for col in USER_COLUMNS:
                     _df[f"{content_type[:-1]}_comment_{col}"] = _df[f"user_{col}"]
-                    del _df[col]
+                    del _df[f"user_{col}"]
 
                 df = pd.concat([df, _df], axis=0).reset_index(drop=True)
             df.to_csv(f"{SNAPSHOT_FOLDER}/{state}_{content_type}.csv", index=False)
