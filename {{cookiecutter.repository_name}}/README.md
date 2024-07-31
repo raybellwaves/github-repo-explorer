@@ -34,9 +34,10 @@ python main.py scrape_gh --states closed --content_types prs --verbose True
 python main.py scrape_gh --states open closed --content_types issues prs --verbose True
 ```
 
-Concating files:
+Create DataFrame (concatenating files):
 ```
 # Concat just open issues
-python main.py concat_files --states open --content_types issues --verbose True
-
+python main.py create_df --states open --content_types issues
+# Concat open and closed issues and open and closed PRs
+python main.py create_df --states open closed --content_types issues prs
 ```
