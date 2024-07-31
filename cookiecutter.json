@@ -3,13 +3,5 @@
     "github_repository": "Name of the GitHub repository",
     "llm_framework": "openai or None",
     "repository_name": "{{cookiecutter.github_repository}}-repo-explorer",
-    "created_after_date": "2000-01-01",
-    "_jinja2_env_vars": {
-        "extensions": [
-            "jinja2.ext.do"
-        ],
-        "filters": {
-            "format_date": "datetime.datetime.now().strftime"
-        }
-    }
+    "created_after_date": "2000-01-01"
 }
