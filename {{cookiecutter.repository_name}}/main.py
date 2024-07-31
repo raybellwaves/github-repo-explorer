@@ -6,7 +6,7 @@ ORG = "{{cookiecutter.github_organization}}"
 REPO = "{{cookiecutter.github_repository}}"
 LLM_FRAMEWORK = "{{cookiecutter.llm_framework}}"
 SNAPSHOT_FOLDER = "snapshot_{{ cookiecutter.current_date }}"
-CREATED_AFTER_DATE = pd.Timestamp("{{cookiecutter.created_after_date}}")
+CREATED_AFTER_DATE = pd.Timestamp("{{cookiecutter.created_after_date}}", tz="UTC")
 
 BOTS = [
     "GPUtester",
@@ -125,6 +125,7 @@ def scrape_gh(
     GH_API_URL_PREFIX = f"https://api.github.com/repos/{ORG}/{REPO}/"
     headers = {"Authorization": f"token {GITHUB_API_TOKEN}"}
 
+    users = set()
     for state in states:
         if verbose:
             print(f"{state=}")
@@ -152,6 +153,11 @@ def scrape_gh(
                 if page_issue_or_pr["user"]["login"] not in BOTS
             ]
             # keep issues or prs after CREATED_AFTER_DATE
+            page_issues_or_prs = [
+                page_issue_or_pr
+                for page_issue_or_pr in page_issues_or_prs
+                if pd.Timestamp(page_issue_or_pr["created_at"]) >= CREATED_AFTER_DATE
+            ]
 
             for content_type in content_types:
                 if verbose:
@@ -224,6 +230,7 @@ def scrape_gh(
                             ]
                         with open(filename, "w") as f:
                             json.dump(detail_response_json, f, indent=4)
+                        users.add(detail_response_json["user"]["login"])
                         # Reactions for PRs can be found in the issue endpo
                         # Get comments data
                         if detail_response_json["comments"] > 0:
@@ -252,7 +259,10 @@ def scrape_gh(
                                     break
                                 with open(filename, "w") as f:
                                     json.dump(comments_response_json, f, indent=4)
+                                users.add(detail_response_json["user"]["login"])
             page += 1
+    print(users)
+    # Scrape users
     return None
 
 
