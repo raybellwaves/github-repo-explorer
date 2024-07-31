@@ -265,7 +265,9 @@ def create_df(
 
     Row UUID is content_type number + comment
     """
+    from glob import glob
     import json
+    import requests
     import os
     import pandas as pd
 
@@ -339,63 +341,28 @@ def create_df(
                 df = pd.concat([df, _df], axis=0).reset_index(drop=True)
                 file = f"{SNAPSHOT_FOLDER}/{state}_{content_type}_dataframe.csv"
                 df.to_csv(file, index=False)
-
-
-def concat_files(
-    repo: str = REPO,
-    states: list[str] = ["open", "closed"],
-    content_types: list[str] = ["issues", "prs"],
-    llm_framework: str = LLM_FRAMEWORK,
-) -> None:
-    """
-    UUID of tables is comment
-    """
-    import json
-    import os
-    import pandas as pd
-
-    from tqdm.auto import tqdm
-
-    for state in states:
-        for content_type in content_types:
-            folder = f"{SNAPSHOT_FOLDER}/{state}_{content_type}"
-            files = sorted(os.listdir(folder))
-            df = pd.DataFrame()
-            for file in tqdm(files, f"concatenating {state} {content_type}"):
-                with open(f"{folder}/{file}", "r") as f:
-                    data = json.load(f)
-                _df = pd.json_normalize(data)
-                if _df["body"][0] is None:
-                    _df["body"] = ""
-                _df["label_names"] = _df["labels"].apply(
-                    lambda x: [label["name"] for label in x]
-                    if isinstance(x, list)
-                    else []
-                )
-                if llm_framework == "openai":
-                    _df["LLM_title_subject"] = _chat_response(
-                        "Give me a one word summary of the following GitHub "
-                        f"{repo} {content_type[:-1]} title: {_df['title'][0]}"
-                    )
-                df = pd.concat([df, _df], axis=0).reset_index(drop=True)
-        df = df.rename(
-            columns={
-                "comments": "n_comments",
-                "user.login": "issue_user.login",
-                "body": "issue_text",
-                "reactions.total_count": "issue_reactions.total_count",
-                "reactions.+1": "issue_reactions.+1",
-                "reactions.-1": "issue_reactions.-1",
-                "reactions.laugh": "issue_reactions.laugh",
-                "reactions.hooray": "issue_reactions.hooray",
-                "reactions.confused": "issue_reactions.confused",
-                "reactions.heart": "issue_reactions.heart",
-                "reactions.rocket": "issue_reactions.rocket",
-                "reactions.eyes": "issue_reactions.eyes",
-                "created_at": "issue_created_at",
-                "updated_at": "issue_updated_at",
-            }
+    files = glob(f"{SNAPSHOT_FOLDER}/*.csv")
+    users = set()
+    for f in files:
+        df = pd.read_csv(f)
+        users.update(df["user.login"].unique())
+    users_list = list(users)
+    folder = f"{SNAPSHOT_FOLDER}/users"
+    os.makedirs(folder, exist_ok=True)
+    user_df = pd.DataFrame()
+    for username in tqdm(users_list, "fetching data for users"):
+        user_detail_response = requests.get(
+            f"https://api.github.com/users/{username}",
+            headers={"Authorization": f"token {os.environ['GITHUB_API_TOKEN']}"},
         )
+        user_detail = user_detail_response.json()
+        # Add geo column
+        file_path = os.path.join(folder, f"user_detail_{username}.json")
+        with open(file_path, "w") as f:
+            json.dump(user_detail, f, indent=4)
+        user_df = pd.concat([user_df, pd.json_normalize(user_detail)], axis=0)
+
+    return None
 
 
 if __name__ == "__main__":
