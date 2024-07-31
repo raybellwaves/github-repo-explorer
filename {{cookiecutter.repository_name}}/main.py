@@ -99,8 +99,6 @@ def _agent_response(agent, content):
 
 
 def scrape_gh(
-    org: str = ORG,
-    repo: str = REPO,
     states: list[str] = ["open", "closed"],
     content_types: list[str] = ["issues", "prs"],
     verbose: bool = False,
@@ -124,7 +122,7 @@ def scrape_gh(
 
     from tqdm.auto import tqdm
 
-    GH_API_URL_PREFIX = f"https://api.github.com/repos/{org}/{repo}/"
+    GH_API_URL_PREFIX = f"https://api.github.com/repos/{ORG}/{REPO}/"
     headers = {"Authorization": f"token {GITHUB_API_TOKEN}"}
 
     for state in states:
@@ -259,10 +257,8 @@ def scrape_gh(
 
 
 def create_df(
-    repo: str = REPO,
     states: list[str] = ["open", "closed"],
     content_types: list[str] = ["issues", "prs"],
-    llm_framework: str = LLM_FRAMEWORK,
 ) -> None:
     """
     Concat data into a dataframe.
@@ -299,13 +295,13 @@ def create_df(
                 _df["user.url"] = _df["user.url"][0].replace(
                     "https://api.github.com/users/", "https://github.com/"
                 )
-                if llm_framework == "openai":
+                if LLM_FRAMEWORK == "openai":
                     _df["LLM_title_subject"] = _chat_response(
                         "Give me a one word summary of the following GitHub "
-                        f"{repo} {content_type[:-1]} title: {_df['title'][0]}"
+                        f"{REPO} {content_type[:-1]} title: {_df['title'][0]}"
                     )
                 # Keep useful columns
-                if llm_framework != "None":
+                if LLM_FRAMEWORK != "None":
                     _df = _df[ISSUE_PR_COLUMNS + "LLM_title_subject"]
                 else:
                     _df = _df[ISSUE_PR_COLUMNS]
@@ -324,9 +320,10 @@ def create_df(
                     _df2["user.url"] = _df2["user.url"].str.replace(
                         "https://api.github.com/users/", "https://github.com/"
                     )
+                    _df2["number"] = int(padded_number)
                     _df2 = _df2[["body", "created_at", "number", "user.login"]]
                     _df2 = _df2.rename(
-                        {
+                        columns={
                             "body": "comment",
                             "created_at": "comment_created_at",
                             "user.login": "commenter",
@@ -337,10 +334,11 @@ def create_df(
                     _df2 = pd.DataFrame(
                         columns=["comment", "comment_created_at", "number", "commenter"]
                     )
-                    _df2["number"] = _df["number"]
-                # Join _df2 to _df on number
+                    _df2["number"] = int(padded_number)
                 _df = pd.merge(_df, _df2, on="number", how="left")
                 df = pd.concat([df, _df], axis=0).reset_index(drop=True)
+                file = f"{SNAPSHOT_FOLDER}/{state}_{content_type}_dataframe.csv"
+                df.to_csv(file, index=False)
 
 
 def concat_files(
@@ -416,7 +414,7 @@ if __name__ == "__main__":
         scrape_gh(
             states=args.states, content_types=args.content_types, verbose=args.verbose
         )
-    elif args.function == "hello_world":
-        hello_world()
+    elif args.function == "create_df":
+        create_df(states=args.states, content_types=args.content_types)
     else:
         print(f"Unknown function: {args.function}")
