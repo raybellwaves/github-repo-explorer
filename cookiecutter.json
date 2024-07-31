@@ -4,5 +4,8 @@
     "llm_framework": "openai or None",
     "repository_name": "{{cookiecutter.github_repository}}-repo-explorer",
     "snapshot_date": "Today's date as YYYY-MM-DD",
-    "created_after_date": "2000-01-01"
+    "created_after_date": "2000-01-01",
+    "_extensions": [
+        "jinja2_time.TimeExtension"
+    ]
 }

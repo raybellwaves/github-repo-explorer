@@ -9,6 +9,7 @@ huggingface_hub
 ipykernel
 ipython
 ipywidgets
+jinja2-time
 jupyterlab
 langchain
 langchain-cli
