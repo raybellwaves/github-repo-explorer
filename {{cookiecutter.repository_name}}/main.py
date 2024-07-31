@@ -453,6 +453,39 @@ def create_df(
     return None
 
 
+def st_dashboard():
+    """
+    1) Who are the users?
+    """
+    import pandas as pd
+    import streamlit as st
+
+    st.title(f"{REPO} GitHub explorer for DevRel")
+
+    st.markdown(
+        """
+    This dashboard can help with:
+    - Identification of users/leads.
+    - Identify common developer pain points.
+    - Identify most common requested features.
+    """
+    )
+
+    st.subheader("Partners")
+
+    df_users = pd.read_parquet(f"{SNAPSHOT_FOLDER}/users.parquet")
+
+    status = st.sidebar.selectbox("status:", ["open", "closed"])
+    content_type = st.sidebar.selectbox("content:", ["issues", "prs"])
+
+    df = pd.read_parquet(f"{SNAPSHOT_FOLDER}/{status}_{content_type}.parquet")
+
+    
+
+
+
+    
+
 if __name__ == "__main__":
     import argparse
 
