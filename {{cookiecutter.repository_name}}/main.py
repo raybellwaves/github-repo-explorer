@@ -5,6 +5,7 @@ import pandas as pd
 ORG = "{{cookiecutter.github_organization}}"
 REPO = "{{cookiecutter.github_repository}}"
 LLM_FRAMEWORK = "{{cookiecutter.llm_framework}}"
+GEOLOCATER_FRAMEWORK = "{{cookiecutter.geolocater_framework}}"
 SNAPSHOT_FOLDER = "snapshot_{{ cookiecutter.current_date }}"
 CREATED_AFTER_DATE = pd.Timestamp("{{cookiecutter.created_after_date}}", tz="UTC")
 
@@ -261,8 +262,36 @@ def scrape_gh(
                                     json.dump(comments_response_json, f, indent=4)
                                 users.add(detail_response_json["user"]["login"])
             page += 1
-    print(users)
     # Scrape users
+    users_list = list(users)
+    folder = f"{SNAPSHOT_FOLDER}/users"
+    os.makedirs(folder, exist_ok=True)
+    for username in tqdm(users_list, "fetching data for users"):
+        user_detail_response = requests.get(
+            f"https://api.github.com/users/{username}",
+            headers=headers,
+        )
+        if not _status_code_checks(user_detail_response.status_code):
+            break
+        user_detail = user_detail_response.json()
+        if not _json_content_check(detail_response2_json):
+            break
+        # Add geo column
+        if GEOLOCATER_FRAMEWORK != "None":
+            if GEOLOCATER_FRAMEWORK == "photon":
+                from geopy.geocoders import Photon
+
+                geolocator = Photon()
+                geocoded_location = geolocator.geocode(user_detail["location"])
+                if geocoded_location is not None:
+                    user_detail["location_lat"] = geocoded_location.latitude
+                    user_detail["location_lon"] = geocoded_location.longitude
+                else:
+                    user_detail["location_lat"] = None
+                    user_detail["location_lon"] = None
+        file_path = os.path.join(folder, f"user_detail_{username}.json")
+        with open(file_path, "w") as f:
+            json.dump(user_detail, f, indent=4)
     return None
 
 
