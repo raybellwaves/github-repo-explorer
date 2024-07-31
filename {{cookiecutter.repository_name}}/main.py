@@ -430,7 +430,7 @@ def create_df(
                     how="left",
                 )
                 for col in USER_COLUMNS:
-                    _df[f"{content_type[:-1]}_{col}"] = _df[f"user_{col}"]
+                    _df[f"{content_type[:-1]}_user_{col}"] = _df[f"user_{col}"]
                     del _df[f"user_{col}"]
                 # Get info about commenters
                 _df = _df.merge(
@@ -440,7 +440,7 @@ def create_df(
                     how="left",
                 )
                 for col in USER_COLUMNS:
-                    _df[f"{content_type[:-1]}_comment_{col}"] = _df[f"user_{col}"]
+                    _df[f"{content_type[:-1]}_comment_user_{col}"] = _df[f"user_{col}"]
                     del _df[f"user_{col}"]
 
                 df = pd.concat([df, _df], axis=0).reset_index(drop=True)
