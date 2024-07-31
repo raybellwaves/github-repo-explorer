@@ -41,6 +41,31 @@ ISSUE_PR_COLUMNS = [
     "user.login",
 ]
 
+USER_COLUMNS = [
+    "avatar_url",
+    "bio",
+    "blog",
+    "company",
+    "created_at",
+    "email",
+    "followers",
+    "following",
+    "html_url",
+    "location",
+    "location_lat",
+    "location_lon",
+    "login",
+    "name",
+    "twitter_username",
+    "updated_at",
+]
+
+COMMENT_COLUMNS = [
+    "body",
+    "created_at",
+    "user.login",
+]
+
 try:
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 except KeyError:
@@ -267,10 +292,10 @@ def scrape_gh(
     folder = f"{SNAPSHOT_FOLDER}/users"
     os.makedirs(folder, exist_ok=True)
     for username in tqdm(users_list, "fetching data for users"):
-        user_detail_response = requests.get(
-            f"https://api.github.com/users/{username}",
-            headers=headers,
-        )
+        user_url = f"https://api.github.com/users/{username}"
+        if verbose:
+            print(f"{user_url=}")
+        user_detail_response = requests.get(user_url, headers=headers)
         if not _status_code_checks(user_detail_response.status_code):
             break
         user_detail = user_detail_response.json()
@@ -312,6 +337,22 @@ def create_df(
 
     from tqdm.auto import tqdm
 
+    # Create a user dataframe
+    folder = f"{SNAPSHOT_FOLDER}/users"
+    files = sorted(os.listdir(folder))
+    users_df = pd.DataFrame()
+    for file in tqdm(files, "concatenating users"):
+        with open(f"{folder}/{file}", "r") as f:
+            data = json.load(f)
+        _df = pd.json_normalize(data)
+        for col in ["created_at", "updated_at"]:
+            _df[col] = pd.Timestamp(_df[col][0])
+        _df = _df[USER_COLUMNS]
+        users_df = pd.concat([users_df, _df], ignore_index=True)
+    users_df = users_df.add_prefix("user_")
+    file = f"{SNAPSHOT_FOLDER}/users.csv"
+    users_df.to_csv(file, index=False)
+
     for state in states:
         for content_type in content_types:
             folder = f"{SNAPSHOT_FOLDER}/{state}_{content_type}"
@@ -322,6 +363,7 @@ def create_df(
                 with open(f"{folder}/{file}", "r") as f:
                     data = json.load(f)
                 _df = pd.json_normalize(data)
+                # You can open or a issue or PR just just a title
                 if _df["body"][0] is None:
                     _df["body"] = ""
                 _df["label_names"] = _df["labels"].apply(
@@ -333,9 +375,6 @@ def create_df(
                 _df["url"] = _df["url"][0].replace(
                     "https://api.github.com/repos/", "https://github.com/"
                 )
-                _df["user.url"] = _df["user.url"][0].replace(
-                    "https://api.github.com/users/", "https://github.com/"
-                )
                 if LLM_FRAMEWORK == "openai":
                     _df["LLM_title_subject"] = _chat_response(
                         "Give me a one word summary of the following GitHub "
@@ -346,7 +385,11 @@ def create_df(
                     _df = _df[ISSUE_PR_COLUMNS + "LLM_title_subject"]
                 else:
                     _df = _df[ISSUE_PR_COLUMNS]
-                _df = _df.rename({"comments": "n_comments"})
+                _df = _df.rename(
+                    columns={"comments": "n_comments", "user.login": "user_login"}
+                )
+                _df = _df.add_prefix(f"{content_type[:-1]}_")
+                _df["number"] = int(padded_number)
 
                 # Read comment data if exists
                 comment_file = (
@@ -358,49 +401,51 @@ def create_df(
                         data = json.load(f)
                     _df2 = pd.json_normalize(data)
                     _df2["created_at"] = pd.to_datetime(_df2["created_at"])
-                    _df2["user.url"] = _df2["user.url"].str.replace(
-                        "https://api.github.com/users/", "https://github.com/"
-                    )
-                    _df2["number"] = int(padded_number)
-                    _df2 = _df2[["body", "created_at", "number", "user.login"]]
+                    _df2 = _df2[COMMENT_COLUMNS].copy()
                     _df2 = _df2.rename(
                         columns={
-                            "body": "comment",
-                            "created_at": "comment_created_at",
-                            "user.login": "commenter",
+                            "user.login": "user_login",
                         }
                     )
+                    _df2 = _df2.add_prefix(f"{content_type[:-1]}_comment_")
+                    _df2["number"] = int(padded_number)
                 else:
                     # empty comment df
                     _df2 = pd.DataFrame(
-                        columns=["comment", "comment_created_at", "number", "commenter"]
+                        columns=[
+                            f"{content_type[:-1]}_comment_body",
+                            f"{content_type[:-1]}_comment_created_at",
+                            f"{content_type[:-1]}_comment_user_login",
+                        ]
                     )
                     _df2["number"] = int(padded_number)
+                # Join comments with issue/pr
                 _df = pd.merge(_df, _df2, on="number", how="left")
-                df = pd.concat([df, _df], axis=0).reset_index(drop=True)
-                file = f"{SNAPSHOT_FOLDER}/{state}_{content_type}_dataframe.csv"
-                df.to_csv(file, index=False)
-    files = glob(f"{SNAPSHOT_FOLDER}/*.csv")
-    users = set()
-    for f in files:
-        df = pd.read_csv(f)
-        users.update(df["user.login"].unique())
-    users_list = list(users)
-    folder = f"{SNAPSHOT_FOLDER}/users"
-    os.makedirs(folder, exist_ok=True)
-    user_df = pd.DataFrame()
-    for username in tqdm(users_list, "fetching data for users"):
-        user_detail_response = requests.get(
-            f"https://api.github.com/users/{username}",
-            headers={"Authorization": f"token {os.environ['GITHUB_API_TOKEN']}"},
-        )
-        user_detail = user_detail_response.json()
-        # Add geo column
-        file_path = os.path.join(folder, f"user_detail_{username}.json")
-        with open(file_path, "w") as f:
-            json.dump(user_detail, f, indent=4)
-        user_df = pd.concat([user_df, pd.json_normalize(user_detail)], axis=0)
+                # Geta info about poster
+                _df = pd.merge(
+                    _df,
+                    users_df,
+                    left_on=f"{content_type[:-1]}_user_login",
+                    right_on="user_login",
+                    how="left",
+                )
+                for col in USER_COLUMNS:
+                    _df[f"{content_type[:-1]}_{col}"] = _df[col]
+                    del _df[col]
+                # Get info about commenters
+                _df = _df.merge(
+                    users_df,
+                    left_on=f"{content_type[:-1]}_comment_user_login",
+                    right_on="user_login",
+                    how="left",
+                )
+                for col in USER_COLUMNS:
+                    _df[f"{content_type[:-1]}_comment_{col}"] = _df[col]
+                    del _df[col]
 
+                df = pd.concat([df, _df], axis=0).reset_index(drop=True)
+            file = f"{SNAPSHOT_FOLDER}/{state}_{content_type}.csv"
+            df.to_csv(file, index=False)
     return None
 
 
