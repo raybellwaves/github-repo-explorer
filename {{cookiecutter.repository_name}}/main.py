@@ -350,8 +350,8 @@ def create_df(
         _df = _df[USER_COLUMNS]
         users_df = pd.concat([users_df, _df], ignore_index=True)
     users_df = users_df.add_prefix("user_")
-    file = f"{SNAPSHOT_FOLDER}/users.csv"
-    users_df.to_csv(file, index=False)
+    users_df.to_csv(f"{SNAPSHOT_FOLDER}/users.csv", index=False)
+    users_df.to_parquet(f"{SNAPSHOT_FOLDER}/users.parquet")
 
     for state in states:
         for content_type in content_types:
@@ -444,8 +444,8 @@ def create_df(
                     del _df[col]
 
                 df = pd.concat([df, _df], axis=0).reset_index(drop=True)
-            file = f"{SNAPSHOT_FOLDER}/{state}_{content_type}.csv"
-            df.to_csv(file, index=False)
+            df.to_csv(f"{SNAPSHOT_FOLDER}/{state}_{content_type}.csv", index=False)
+            df.to_parquet(f"{SNAPSHOT_FOLDER}/{state}_{content_type}.parquet")
     return None
 
 
