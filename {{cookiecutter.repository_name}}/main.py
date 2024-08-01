@@ -66,6 +66,17 @@ COMMENT_COLUMNS = [
     "user.login",
 ]
 
+OPEN_ISSUE_COLUMNS = [
+    "issue_body",
+    "issue_n_comments",
+    "issue_created_at",
+    "issue_label_names",
+    "issue_reactions.total_count",
+    "issue_title",
+    "issue_user_login",
+    "issue_user_company",
+]
+
 try:
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 except KeyError:
@@ -97,10 +108,10 @@ def _json_content_check(json_content) -> bool:
         return True
 
 
-def _chat_response(content):
+def _chat_response(content, api_key=OPENAI_API_KEY):
     from openai import OpenAI
 
-    client = OpenAI(api_key=OPENAI_API_KEY)
+    client = OpenAI(api_key=api_key)
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[{"role": "user", "content": content}],
@@ -455,18 +466,22 @@ def st_dashboard():
     """
     1) Who are the users?
     """
+    from streamlit_folium import st_folium
     import pandas as pd
+    from langchain_experimental.agents import create_pandas_dataframe_agent
+    import geopandas as gpd
     import matplotlib.pyplot as plt
     import streamlit as st
 
-    st.title(f"{REPO} GitHub explorer for DevRel")
+    st.title(f"{REPO} GitHub explorer")
 
     st.markdown(
         """
-    This dashboard can help with:
-    - Identification of users/leads.
-    - Identify common developer pain points.
-    - Identify most common requested features.
+    This dashboard can help with a variety of personas:
+    - PM: Identification of users/leads.
+    - DevRel/SA: Identify common developer pain points.
+    - Maintainer: Identify most common requested features.
+    - User: Indentify other companies. Are they hiring?
     """
     )
 
@@ -516,6 +531,113 @@ def st_dashboard():
         plt.tight_layout()
         st.pyplot(fig)
 
+    st.markdown(
+        "Use the LLM below to ask questions such as "
+        "**'What type of company is X?'** "
+        "or generic questions such as "
+        f"**'Why would X use {REPO}?'** "
+        "but don't expect a great result. "
+        "We will use the GitHub data to refine this question later. "
+    )
+
+    st.markdown("**You will need to pass an OpenAI API key to ask questions below:**")
+    openai_api_key = st.text_input("OpenAI API Key:", type="password")
+    content = st.text_input(
+        f"Ask questions about companies who use {REPO}:",
+        "What type of company is X?",
+    )
+    if openai_api_key:
+        st.write(_chat_response(content, openai_api_key))
+
+    st.subheader("Community")
+
+    st.markdown(
+        f"We can explore the location of users. "
+        "This can help with event planning and community building."
+    )
+
+    gdf = gpd.GeoDataFrame(
+        df_users,
+        geometry=gpd.points_from_xy(
+            df_users["user_location_lon"],
+            df_users["user_location_lat"],
+        ),
+        crs="epsg:4326",
+    )
+    m = gdf.explore()
+    for idx, row in gdf.iterrows():
+        icon = CustomIcon(
+            icon_image=row['user_avatar_url'],
+            icon_size=(30, 30),
+            icon_anchor=(15, 15)
+        )
+        popup = f"""
+        <b>{row['user_name']}</b><br>
+        <b>Bio:</b> {row['user_bio']}<br>
+        <b>Blog:</b> <a href="{row['user_blog']}" target="_blank">{row['user_blog']}</a><br>
+        <b>Company:</b> {row['user_company']}<br>
+        <b>Created at:</b> {row['user_created_at']}<br>
+        <b>Email:</b> {row['user_email']}<br>
+        <b>Followers:</b> {row['user_followers']}<br>
+        <b>Following:</b> {row['user_following']}<br>
+        <b>GitHub:</b> <a href="{row['user_html_url']}" target="_blank">{row['user_html_url']}</a><br>
+        <b>Location:</b> {row['user_location']}<br>
+        <b>Coordinates:</b> {row['user_location_lat']}, {row['user_location_lon']}<br>
+        <b>Login:</b> {row['user_login']}<br>
+        <b>Twitter:</b> {row['user_twitter_username'] if row['user_twitter_username'] else 'N/A'}<br>
+        <b>Updated at:</b> {row['user_updated_at']}
+        """
+        folium.Marker(
+            location=[row.geometry.y, row.geometry.x],
+            popup=folium.Popup(popup, max_width=300),
+            icon=icon
+        ).add_to(m)
+        st_folium(m, width=1000)
+
+    st.subheader("Users")
+
+    st.markdown(
+        f"""
+        We can explore the GitHub data to understand what developers are interested in 
+        and to ensure their requested features or bug are taken into account in the roadmap
+        You can ask questions such as: 
+        - **What issues are X most interested in?**
+        - **What issue has the most reactions?**
+        - **What company posted the issue with the most reactions?**
+        - **What are the top 5 issues with the most most reactions?**
+        """
+    )
+
+    df = pd.read_parquet(f"{SNAPSHOT_FOLDER}/open_issues.parquet")
+    _df = df[OPEN_ISSUE_COLUMNS]
+    _df['issue_label_names'] = _df['issue_label_names'].apply(tuple)
+    # Limit to 100 rows for demo purposes
+    _df = _df.drop_duplicates().head(100)
+    if openai_api_key:
+        agent = create_pandas_dataframe_agent(
+            OpenAI_langchain(
+                temperature=0,
+                model="gpt-3.5-turbo-instruct",
+                openai_api_key=openai_api_key,
+            ),
+            _df,
+            allow_dangerous_code=True,
+            verbose=True,
+        )
+    content = st.text_input(
+        f"Ask questions about about {REPO} users and developers such as:",
+        f"What issues has the company X created?",
+    )
+    if openai_api_key:
+        response = agent_response(agent, content)
+        st.write(response)
+        if ":" in response:
+            response = response.split(":")[1].strip()
+
+    st.markdown(
+        "We will now use a vector database to query matching issues. "
+        "This can help first time posters find similar issues"
+    )
 
 if __name__ == "__main__":
     import argparse
@@ -536,4 +658,4 @@ if __name__ == "__main__":
     elif args.function == "create_df":
         create_df(states=args.states, content_types=args.content_types)
     else:
-        print(f"Unknown function: {args.function}")
+        st_dashboard()
