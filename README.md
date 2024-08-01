@@ -3,6 +3,7 @@
 ## What does this do?
 
 Scrapes issues and prs from GitHub and saves them in a parquet file.
+It also provides analytics in a streamlit dashboard.
 
 ## How do I use this?
 
