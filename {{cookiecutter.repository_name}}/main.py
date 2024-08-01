@@ -4,7 +4,9 @@ import pandas as pd
 
 ORG = "{{cookiecutter.github_organization}}"
 REPO = "{{cookiecutter.github_repository}}"
-LLM_FRAMEWORK = "{{cookiecutter.llm_framework}}"
+LLM_CHAT_FRAMEWORK = "{{cookiecutter.llm_chat_framework}}"
+EMBEDDINGS_FRAMEWORK = "{{cookiecutter.embeddings_framework}}"
+LLM_AGENTS_FRAMEWORK = "{{cookiecutter.llm_agents_framework}}"
 GEOLOCATER_FRAMEWORK = "{{cookiecutter.geolocater_framework}}"
 SNAPSHOT_FOLDER = "snapshot_{{ cookiecutter.current_date }}"
 CREATED_AFTER_DATE = pd.Timestamp("{{cookiecutter.created_after_date}}", tz="UTC")
