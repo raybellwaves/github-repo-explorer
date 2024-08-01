@@ -292,9 +292,9 @@ def scrape_gh(
                                 data = json.load(f)
                                 for comment in data:
                                     users.add(comment["user"]["login"])
-                            continue
                         except FileNotFoundError:
-                            continue
+                            pass
+                        continue
                     else:
                         detail_url = f"{GH_API_URL_PREFIX}{endpoint}/{number}"
                         if verbose:
