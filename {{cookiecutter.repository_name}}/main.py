@@ -480,23 +480,30 @@ def create_vector_db(
     states: list[str] = ["open", "closed"],
     content_types: list[str] = ["issues", "prs"],
 ) -> None:
+    import os
     import pickle
     import pandas as pd
     from langchain_openai import OpenAIEmbeddings
     from pymilvus import MilvusClient
 
+    if os.path.exists(f"{SNAPSHOT_FOLDER}/milvus.db"):
+        os.remove(f"{SNAPSHOT_FOLDER}/milvus.db")
+    client = MilvusClient(f"{SNAPSHOT_FOLDER}/milvus.db")
     for state in states:
         for content_type in content_types:
+            print(f"Creating vector db for {state} {content_type}")
             df = pd.read_parquet(f"{SNAPSHOT_FOLDER}/{state}_{content_type}.parquet")
             if content_type == "issues":
-                _df = df[ISSUE_COLUMNS].copy()
+                _df = df[
+                    ISSUE_COLUMNS + [f"{content_type[:-1]}_LLM_title_subject"]
+                ].copy()
             else:
-                _df = df[PR_COLUMNS].copy()
+                _df = df[PR_COLUMNS + [f"{content_type[:-1]}_LLM_title_subject"]].copy()
             _df[f"{content_type[:-1]}_label_names"] = _df[
                 f"{content_type[:-1]}_label_names"
             ].apply(tuple)
             # Limit to 100 for demo purposes
-            _df = _df.drop_duplicates().head(100)
+            _df = _df.drop_duplicates().head(100).reset_index(drop=True)
             embeddings_model = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
             embeddings = embeddings_model.embed_documents(
                 _df[f"{content_type[:-1]}_body"].fillna("").values
@@ -515,7 +522,6 @@ def create_vector_db(
                 for i, row in _df.iterrows()
             ]
 
-            client = MilvusClient(f"{SNAPSHOT_FOLDER}/milvus.db")
             client.create_collection(
                 collection_name=f"{state}_{content_type}",
                 dimension=1536,

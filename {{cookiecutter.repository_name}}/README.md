@@ -36,15 +36,18 @@ python main.py scrape_gh --states open closed --content_types issues prs --verbo
 
 Create DataFrame (Concatenate and flatten files):
 ```
-# Concat just open issues
+# just open issues
 python main.py create_df --states open --content_types issues
-# Concat open and closed issues and open and closed PRs
+# open and closed issues and open and closed PRs
 python main.py create_df --states open closed --content_types issues prs
 ```
 
 Create a vector database
 ```
+# just open issues
 python main.py create_vector_db --states open --content_types issues
+# open and closed issues and open and closed PRs
+python main.py create_vector_db --states open closed --content_types issues prs
 ```
 
 Run the dashboard
