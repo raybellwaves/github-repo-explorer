@@ -67,6 +67,7 @@ COMMENT_COLUMNS = [
 ]
 
 OPEN_ISSUE_COLUMNS = [
+    "number",
     "issue_body",
     "issue_n_comments",
     "issue_created_at",
@@ -392,7 +393,7 @@ def create_df(
                     )
                 # Keep useful columns
                 if LLM_FRAMEWORK != "None":
-                    _df = _df[ISSUE_PR_COLUMNS + "LLM_title_subject"]
+                    _df = _df[ISSUE_PR_COLUMNS + ["LLM_title_subject"]]
                 else:
                     _df = _df[ISSUE_PR_COLUMNS]
                 _df = _df.rename(
@@ -484,10 +485,10 @@ def create_vector_db() -> None:
         {
             "id": row["number"],
             "vector": embeddings[i],
-            "text": row["issue_text"],
-            "subject": row["LLM_title_subject"],
+            "text": row["issue_body"],
+            "subject": row["issue_LLM_title_subject"],
         }
-        for i, row in df.iterrows()
+        for i, row in _df.iterrows()
     ]
 
     client = MilvusClient(f"./milvus_{REPO.replace('-', '_')}.db")
