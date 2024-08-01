@@ -126,7 +126,7 @@ def _chat_response(content, api_key=OPENAI_API_KEY):
 
     client = OpenAI(api_key=api_key)
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",
         messages=[{"role": "user", "content": content}],
     )
     return response.choices[0].message.content
@@ -690,7 +690,7 @@ def st_dashboard():
         agent = create_pandas_dataframe_agent(
             OpenAI_langchain(
                 temperature=0,
-                model="gpt-3.5-turbo-instruct",
+                model="gpt-4o-mini",
                 openai_api_key=openai_api_key,
             ),
             _df,
