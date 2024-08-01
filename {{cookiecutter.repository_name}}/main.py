@@ -2,11 +2,28 @@ import os
 
 import pandas as pd
 
+try:
+    OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+except KeyError:
+    print("env var OPENAI_API_KEY not found")
+    OPENAI_API_KEY = ""
+try:
+    GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+except KeyError:
+    print("env var GOOGLE_API_KEY not found")
+    GOOGLE_API_KEY = ""
+try:
+    GITHUB_API_TOKEN = os.environ.get("GITHUB_API_TOKEN")
+except KeyError:
+    print("env var GITHUB_API_TOKEN not found")
+    GITHUB_API_TOKEN = ""
+
+
 ORG = "{{cookiecutter.github_organization}}"
 REPO = "{{cookiecutter.github_repository}}"
 LLM_CHAT_FRAMEWORK = "{{cookiecutter.llm_chat_framework}}"
 EMBEDDINGS_FRAMEWORK = "{{cookiecutter.embeddings_framework}}"
-LLM_AGENTS_FRAMEWORK = "{{cookiecutter.llm_agents_framework}}"
+LLM_AGENT_FRAMEWORK = "{{cookiecutter.llm_agent_framework}}"
 GEOLOCATER_FRAMEWORK = "{{cookiecutter.geolocater_framework}}"
 SNAPSHOT_FOLDER = "snapshot_{{ cookiecutter.current_date }}"
 CREATED_AFTER_DATE = pd.Timestamp("{{cookiecutter.created_after_date}}", tz="UTC")
@@ -128,15 +145,22 @@ def _json_content_check(json_content) -> bool:
         return True
 
 
-def _chat_response(content, api_key=OPENAI_API_KEY):
-    from openai import OpenAI
+def _chat_response(
+    llm_chat_framework=LLM_CHAT_FRAMEWORK,
+    content="Why is the sky blue?",
+    api_key=OPENAI_API_KEY,
+):
+    if llm_chat_framework == "openai":
+        from openai import OpenAI
 
-    client = OpenAI(api_key=api_key)
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": content}],
-    )
-    return response.choices[0].message.content
+        client = OpenAI(api_key=api_key)
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": content}],
+        )
+        return response.choices[0].message.content
+    else:
+        raise ValueError("Unsupported LLM chat framework")
 
 
 def _num_tokens_from_string(
@@ -171,6 +195,8 @@ def scrape_gh(
     GitHub shares the same structure for issues and PRs
     Note: not tested for only open issues for example
     """
+    if GITHUB_API_TOKEN == "":
+        raise ValueError("GITHUB_API_TOKEN not set")
     if verbose:
         print(f"{states=}, {content_types=}")
     import requests
@@ -405,13 +431,13 @@ def create_df(
                 _df["url"] = _df["url"][0].replace(
                     "https://api.github.com/repos/", "https://github.com/"
                 )
-                if LLM_FRAMEWORK == "openai":
+                if LLM_CHAT_FRAMEWORK == "openai":
                     _df["LLM_title_subject"] = _chat_response(
                         "Give me a one word summary of the following GitHub "
                         f"{REPO} {content_type[:-1]} title: {_df['title'][0]}"
                     )
                 # Keep useful columns
-                if LLM_FRAMEWORK != "None":
+                if LLM_CHAT_FRAMEWORK != "None":
                     _df = _df[ISSUE_PR_COLUMNS + ["LLM_title_subject"]]
                 else:
                     _df = _df[ISSUE_PR_COLUMNS]
@@ -487,6 +513,8 @@ def create_vector_db(
     states: list[str] = ["open", "closed"],
     content_types: list[str] = ["issues", "prs"],
 ) -> None:
+    if EMBEDDINGS_FRAMEWORK == "None":
+        raise ValueError("Embeddings framework cannot be None")
     import os
     import pickle
     import pandas as pd
@@ -510,7 +538,8 @@ def create_vector_db(
                 f"{content_type[:-1]}_label_names"
             ].apply(tuple)
             _df = _df.drop_duplicates().reset_index(drop=True)
-            embeddings_model = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
+            if EMBEDDINGS_FRAMEWORK == "openai":
+                embeddings_model = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
             embeddings = embeddings_model.embed_documents(
                 _df[f"{content_type[:-1]}_body"].fillna("").values
             )  # ndocs x 1536
@@ -546,6 +575,7 @@ def st_dashboard():
     from pymilvus import MilvusClient
     from folium import CustomIcon
     from langchain_openai import OpenAIEmbeddings
+    from langchain_google_genai import ChatGoogleGenerativeAI
     from langchain_experimental.agents import create_pandas_dataframe_agent
     from langchain_openai import OpenAI as OpenAI_langchain
     import geopandas as gpd
@@ -629,7 +659,7 @@ def st_dashboard():
         "What type of company is X?",
     )
     if openai_api_key:
-        st.write(_chat_response(content, openai_api_key))
+        st.write(_chat_response("openai", content, openai_api_key))
 
     st.subheader("Community")
 
@@ -693,12 +723,12 @@ def st_dashboard():
     _df["issue_label_names"] = _df["issue_label_names"].apply(tuple)
     # Limit to 50 rows for demo purposes
     _df = _df.drop_duplicates().head(50).reset_index(drop=True)
-    if openai_api_key:
+    google_api_key = st.text_input("Google API Key:", type="password")
+    if google_api_key:
         agent = create_pandas_dataframe_agent(
-            OpenAI_langchain(
-                temperature=0,
-                model="gpt-4o-mini",
-                openai_api_key=openai_api_key,
+            ChatGoogleGenerativeAI(
+                model="gemini-pro",
+                google_api_key=google_api_key,
             ),
             _df,
             allow_dangerous_code=True,
@@ -708,7 +738,8 @@ def st_dashboard():
         f"Ask questions about about {REPO} users and developers such as:",
         "What issues has the company X created?",
     )
-    if openai_api_key:
+
+    if google_api_key:
         response = _agent_response(agent, content)
         st.write(response)
         if ":" in response:
