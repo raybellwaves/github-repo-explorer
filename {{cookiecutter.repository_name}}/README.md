@@ -9,6 +9,7 @@ cruft update
 
 Create an environment for development
 ```
+cd {{cookiecutter.github_repository}}-repo-explorer && \
 mamba create -n gre python=3.11 --y && \
   conda activate gre && \
   uv pip install -r requirements-dev.txt --find-links https://download.pytorch.org/whl/cpu
@@ -16,12 +17,11 @@ mamba create -n gre python=3.11 --y && \
 
 Remove the environment
 ```
-conda remove --name gie --all --y
+conda remove --name gre --all --y
 ```
 
 Scraping github:
 ```
-cd {{cookiecutter.github_repository}}-repo-explorer
 # Scrape just open issues
 python main.py scrape_gh --states open --content_types issues --verbose True
 # Scrape just closed issues
