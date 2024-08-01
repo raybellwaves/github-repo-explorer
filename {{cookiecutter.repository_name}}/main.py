@@ -431,13 +431,12 @@ def create_df(
                 _df["url"] = _df["url"][0].replace(
                     "https://api.github.com/repos/", "https://github.com/"
                 )
-                if LLM_CHAT_FRAMEWORK == "openai":
-                    _df["LLM_title_subject"] = _chat_response(
-                        "Give me a one word summary of the following GitHub "
-                        f"{REPO} {content_type[:-1]} title: {_df['title'][0]}"
-                    )
-                # Keep useful columns
                 if LLM_CHAT_FRAMEWORK != "None":
+                    _df["LLM_title_subject"] = _chat_response(
+                        LLM_CHAT_FRAMEWORK,
+                        "Give me a one word summary of the following GitHub "
+                        f"{REPO} {content_type[:-1]} title: {_df['title'][0]}",
+                    )
                     _df = _df[ISSUE_PR_COLUMNS + ["LLM_title_subject"]]
                 else:
                     _df = _df[ISSUE_PR_COLUMNS]
