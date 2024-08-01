@@ -720,48 +720,73 @@ def st_dashboard():
     df = pd.read_parquet(f"{SNAPSHOT_FOLDER}/open_issues.parquet")
     _df = df[ISSUE_COLUMNS].copy()
     _df["issue_label_names"] = _df["issue_label_names"].apply(tuple)
-    # Limit to 50 rows for demo purposes
-    _df = _df.drop_duplicates().head(50).reset_index(drop=True)
-    google_api_key = st.text_input("Google API Key:", type="password")
-    if google_api_key:
+
+    st_limit_rows = st.selectbox("limit rows:", [10, 25, 50, 100])
+
+    _df_filtered = _df.drop_duplicates().head(st_limit_rows).reset_index(drop=True)
+
+    st_llm_agent_framework = st.selectbox(
+        "agent framework:", ["google", "openai", "None"]
+    )
+
+    if st_llm_agent_framework == "openai":
         agent = create_pandas_dataframe_agent(
-            ChatGoogleGenerativeAI(
-                model="gemini-pro",
-                google_api_key=google_api_key,
+            OpenAI_langchain(
+                temperature=0,
+                model="gpt-3.5-turbo-instruct",
+                openai_api_key=openai_api_key,
             ),
-            _df,
+            _df_filtered,
             allow_dangerous_code=True,
             verbose=True,
         )
+    elif st_llm_agent_framework == "google":
+        google_api_key = st.text_input("Google API Key:", type="password")
+        agent = create_pandas_dataframe_agent(
+            ChatGoogleGenerativeAI(
+                model="gemini-1.5-flash",
+                google_api_key=google_api_key,
+            ),
+            _df_filtered,
+            allow_dangerous_code=True,
+            verbose=True,
+        )
+    else:
+        agent = None
+
     content = st.text_input(
-        f"Ask questions about about {REPO} users and developers such as:",
+        "Ask questions about about users and developers such as:",
         "What issues has the company X created?",
     )
 
-    if google_api_key:
+    if agent is not None:
         response = _agent_response(agent, content)
         st.write(response)
         if ":" in response:
             response = response.split(":")[1].strip()
 
-    st.markdown(
-        "We will now use a vector database to query matching issues. "
-        "This can help first time posters find similar issues"
-    )
-    if openai_api_key:
-        embeddings_model = OpenAIEmbeddings(api_key=openai_api_key)
-        question = f"What issues are similar to {response}?"
-        question_embeddings = embeddings_model.embed_documents([question])
-        client = MilvusClient(f"{SNAPSHOT_FOLDER}/milvus.db")
-        res = client.search(
-            collection_name="open_issues",
-            data=question_embeddings,
-            limit=3,
+    if EMBEDDINGS_FRAMEWORK != "None":
+        st.markdown(
+            "We will now use a vector database to query matching issues. "
+            "This can help first time posters find similar issues"
         )
-        similar_issue_1 = res[0][0]["id"]
-        similar_issue_2 = res[0][1]["id"]
-        st.dataframe(_df[_df["number"] == similar_issue_1])
-        st.dataframe(_df[_df["number"] == similar_issue_2])
+        if openai_api_key:
+            embeddings_model = OpenAIEmbeddings(api_key=openai_api_key)
+            question = f"What issues are similar to {response}?"
+            question_embeddings = embeddings_model.embed_documents([question])
+            client = MilvusClient(f"{SNAPSHOT_FOLDER}/milvus.db")
+            res = client.search(
+                collection_name="open_issues",
+                data=question_embeddings,
+                limit=3,
+            )
+            similar_issue_1 = res[0][0]["id"]
+            similar_issue_2 = res[0][1]["id"]
+            _df1 = df[df["number"] == similar_issue_1]
+            _df2 = df[df["number"] == similar_issue_2]
+            st.dataframe(_df1)
+            if not _df1.equals(_df2):
+                st.dataframe(_df2)
 
 
 if __name__ == "__main__":
