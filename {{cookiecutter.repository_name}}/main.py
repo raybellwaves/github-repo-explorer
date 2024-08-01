@@ -195,7 +195,8 @@ def scrape_gh(
                 for page_issue_or_pr in page_issues_or_prs
                 if pd.Timestamp(page_issue_or_pr["created_at"]) >= CREATED_AFTER_DATE
             ]
-
+            if not page_issues_or_prs:
+                break
             for content_type in content_types:
                 if verbose:
                     print(f"{content_type=}")
