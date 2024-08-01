@@ -639,13 +639,15 @@ def st_dashboard():
 
 
 if __name__ == "__main__":
+    import sys
+
     if len(sys.argv) > 1 and sys.argv[1] == "streamlit":
         st_dashboard()
     else:
         import argparse
 
         parser = argparse.ArgumentParser()
-        parser.add_argument("function", type=str, help="Function to call", default="st_dashboard")
+        parser.add_argument("function", type=str, help="Function to call")
         parser.add_argument("--states", nargs="+", type=str, default=["open", "closed"])
         parser.add_argument(
             "--content_types", nargs="+", type=str, default=["issues", "prs"]
@@ -655,9 +657,11 @@ if __name__ == "__main__":
 
         if args.function == "scrape_gh":
             scrape_gh(
-                states=args.states, content_types=args.content_types, verbose=args.verbose
+                states=args.states,
+                content_types=args.content_types,
+                verbose=args.verbose,
             )
         elif args.function == "create_df":
             create_df(states=args.states, content_types=args.content_types)
         else:
-            raise ValueError(f"Unknown function: {args.function}")  
+            raise ValueError(f"Unknown function: {args.function}")
