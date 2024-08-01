@@ -280,7 +280,21 @@ def scrape_gh(
                     if os.path.exists(filename):
                         if verbose:
                             print(f"{filename} already exists")
-                        continue
+                        # Grab the users from these files
+                        with open(filename, "r") as f:
+                            data = json.load(f)
+                            users.add(data["user"]["login"])
+                        try:
+                            filename = (
+                                f"{comment_folder}/" f"comments_{padded_number}.json"
+                            )
+                            with open(filename, "r") as f:
+                                data = json.load(f)
+                                for comment in data:
+                                    users.add(comment["user"]["login"])
+                            continue
+                        except FileNotFoundError:
+                            continue
                     else:
                         detail_url = f"{GH_API_URL_PREFIX}{endpoint}/{number}"
                         if verbose:
