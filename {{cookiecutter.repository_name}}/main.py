@@ -66,7 +66,7 @@ COMMENT_COLUMNS = [
     "user.login",
 ]
 
-OPEN_ISSUE_COLUMNS = [
+ISSUE_COLUMNS = [
     "number",
     "issue_body",
     "issue_n_comments",
@@ -76,6 +76,18 @@ OPEN_ISSUE_COLUMNS = [
     "issue_title",
     "issue_user_login",
     "issue_user_company",
+]
+
+PR_COLUMNS = [
+    "number",
+    "pr_body",
+    "pr_n_comments",
+    "pr_created_at",
+    "pr_label_names",
+    "pr_reactions.total_count",
+    "pr_title",
+    "pr_user_login",
+    "pr_user_company",
 ]
 
 try:
@@ -464,38 +476,55 @@ def create_df(
     return None
 
 
-def create_vector_db() -> None:
+def create_vector_db(
+    states: list[str] = ["open", "closed"],
+    content_types: list[str] = ["issues", "prs"],
+) -> None:
     import pickle
     import pandas as pd
     from langchain_openai import OpenAIEmbeddings
     from pymilvus import MilvusClient
 
-    df = pd.read_parquet(f"{SNAPSHOT_FOLDER}/open_issues.parquet")
-    _df = df[OPEN_ISSUE_COLUMNS].copy()
-    _df["issue_label_names"] = _df["issue_label_names"].apply(tuple)
-    # Limit to 100 rows for demo purposes
-    _df = _df.drop_duplicates().head(100)
-    embeddings_model = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
-    embeddings = embeddings_model.embed_documents(
-        _df["issue_body"].fillna("").values
-    )  # ndocs x 1536
-    with open(f"{REPO}_embeddings.pkl", "wb") as f:
-        pickle.dump(embeddings, f)
-    data = [
-        {
-            "id": row["number"],
-            "vector": embeddings[i],
-            "text": row["issue_body"],
-            "subject": row["issue_LLM_title_subject"],
-        }
-        for i, row in _df.iterrows()
-    ]
+    for state in states:
+        for content_type in content_types:
+            df = pd.read_parquet(f"{SNAPSHOT_FOLDER}/{state}_{content_type}.parquet")
+            if content_type == "issues":
+                _df = df[ISSUE_COLUMNS].copy()
+            else:
+                _df = df[PR_COLUMNS].copy()
+            _df[f"{content_type[:-1]}_label_names"] = _df[
+                f"{content_type[:-1]}_label_names"
+            ].apply(tuple)
+            # Limit to 100 for demo purposes
+            _df = _df.drop_duplicates().head(100)
+            embeddings_model = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
+            embeddings = embeddings_model.embed_documents(
+                _df[f"{content_type[:-1]}_body"].fillna("").values
+            )  # ndocs x 1536
+            with open(
+                f"{SNAPSHOT_FOLDER}/{state}_{content_type}_embeddings.pkl", "wb"
+            ) as f:
+                pickle.dump(embeddings, f)
+            data = [
+                {
+                    "id": row["number"],
+                    "vector": embeddings[i],
+                    "text": row[f"{content_type[:-1]}_body"],
+                    "subject": row[f"{content_type[:-1]}_LLM_title_subject"],
+                }
+                for i, row in _df.iterrows()
+            ]
 
-    client = MilvusClient(f"./milvus_{REPO.replace('-', '_')}.db")
-    client.create_collection(
-        collection_name=f"{REPO.replace('-', '_')}_issue_text", dimension=1536
-    )
-    _ = client.insert(collection_name=f"{REPO.replace('-', '_')}_issue_text", data=data)
+            client = MilvusClient(f"{SNAPSHOT_FOLDER}/milvus.db")
+            client.create_collection(
+                collection_name=f"{state}_{content_type}",
+                dimension=1536,
+            )
+            _ = client.insert(
+                collection_name=f"{state}_{content_type}",
+                data=data,
+            )
+    return None
 
 
 def st_dashboard():
@@ -646,7 +675,7 @@ def st_dashboard():
     )
 
     df = pd.read_parquet(f"{SNAPSHOT_FOLDER}/open_issues.parquet")
-    _df = df[OPEN_ISSUE_COLUMNS].copy()
+    _df = df[ISSUE_COLUMNS].copy()
     _df["issue_label_names"] = _df["issue_label_names"].apply(tuple)
     # Limit to 100 rows for demo purposes
     _df = _df.drop_duplicates().head(100)
@@ -702,5 +731,7 @@ if __name__ == "__main__":
             )
         elif args.function == "create_df":
             create_df(states=args.states, content_types=args.content_types)
+        elif args.function == "create_vector_db":
+            create_vector_db(states=args.states, content_types=args.content_types)
         else:
             raise ValueError(f"Unknown function: {args.function}")

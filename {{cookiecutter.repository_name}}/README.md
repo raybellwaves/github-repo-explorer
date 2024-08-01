@@ -44,7 +44,7 @@ python main.py create_df --states open closed --content_types issues prs
 
 Create a vector database
 ```
-python main.py create_vector_db
+python main.py create_vector_db --states open --content_types issues
 ```
 
 Run the dashboard
