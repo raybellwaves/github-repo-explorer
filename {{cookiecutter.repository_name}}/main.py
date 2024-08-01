@@ -329,9 +329,7 @@ def create_df(
 
     Row UUID is content_type number + comment
     """
-    from glob import glob
     import json
-    import requests
     import os
     import pandas as pd
 
@@ -483,7 +481,9 @@ def st_dashboard():
 
     tab1, tab2 = st.tabs(["Posters", "Commenters"])
     with tab1:
-        _df = df[["number", f"{content_type[:-1]}_user_company"]].drop_duplicates()
+        _df = df[
+            [f"{content_type[:-1]}_user_login", f"{content_type[:-1]}_user_company"]
+        ].drop_duplicates()
         _counts = _df[f"{content_type[:-1]}_user_company"].value_counts()
         fig, ax = plt.subplots(figsize=(10, 6))
         _counts.plot(
@@ -491,13 +491,18 @@ def st_dashboard():
             ax=ax,
             xlabel="Company",
             ylabel="Count",
-            title=f"Count of companies who create {content_type} in the {repo} GitHub repo",
+            title=f"Count of company employees who create {content_type} in the {REPO} repo",
         )
         plt.xticks(rotation=45, ha="right")
         plt.tight_layout()
         st.pyplot(fig)
     with tab2:
-        _df = df[["number", f"{content_type[:-1]}_comment_user_company"]].drop_duplicates()
+        _df = df[
+            [
+                f"{content_type[:-1]}_comment_user_login",
+                f"{content_type[:-1]}_comment_user_company",
+            ]
+        ].drop_duplicates()
         _counts = _df[f"{content_type[:-1]}_comment_user_company"].value_counts()
         fig, ax = plt.subplots(figsize=(10, 6))
         _counts.plot(
@@ -505,16 +510,12 @@ def st_dashboard():
             ax=ax,
             xlabel="Company",
             ylabel="Count",
-            title=f"Count of companies who comment on {content_type} in the {repo} GitHub repo",
+            title=f"Count of companies employees who comment on {content_type} in the {REPO} repo",
         )
         plt.xticks(rotation=45, ha="right")
         plt.tight_layout()
         st.pyplot(fig)
 
-
-
-
-    
 
 if __name__ == "__main__":
     import argparse
