@@ -1,7 +1,9 @@
 {
     "github_organization": "Name of the GitHub organization the repository is associated with",
     "github_repository": "Name of the GitHub repository",
-    "llm_framework": "openai (paid), gemini (paid) or None (free)",
+    "llm_chat_framework": "openai (paid), gemini (free (rate limited)) or None (free)",
+    "embeddings_framework": "openai (paid), gemini (free (rate limited)) or None (free)",
+    "llm_agent_framework": "openai (paid), gemini (free (rate limited)) or None (free)",
     "geolocater_framework": "photon (free) or None (free)",
     "repository_name": "{{cookiecutter.github_repository}}-repo-explorer",
     "created_after_date": "2000-01-01",
