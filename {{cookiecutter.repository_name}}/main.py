@@ -502,8 +502,7 @@ def create_vector_db(
             _df[f"{content_type[:-1]}_label_names"] = _df[
                 f"{content_type[:-1]}_label_names"
             ].apply(tuple)
-            # Limit to 100 for demo purposes
-            _df = _df.drop_duplicates().head(100).reset_index(drop=True)
+            _df = _df.drop_duplicates().reset_index(drop=True)
             embeddings_model = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
             embeddings = embeddings_model.embed_documents(
                 _df[f"{content_type[:-1]}_body"].fillna("").values
@@ -685,8 +684,8 @@ def st_dashboard():
     df = pd.read_parquet(f"{SNAPSHOT_FOLDER}/open_issues.parquet")
     _df = df[ISSUE_COLUMNS].copy()
     _df["issue_label_names"] = _df["issue_label_names"].apply(tuple)
-    # Limit to 100 rows for demo purposes
-    _df = _df.drop_duplicates().head(100).reset_index(drop=True)
+    # Limit to 50 rows for demo purposes
+    _df = _df.drop_duplicates().head(50).reset_index(drop=True)
     if openai_api_key:
         agent = create_pandas_dataframe_agent(
             OpenAI_langchain(
