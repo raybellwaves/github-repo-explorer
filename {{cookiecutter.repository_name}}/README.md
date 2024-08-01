@@ -54,3 +54,8 @@ Run the dashboard
 ```
 streamlit run main.py
 ```
+
+Deploy the dashboard
+```
+...
+```
