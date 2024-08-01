@@ -130,8 +130,11 @@ def _status_code_checks(status_code: int) -> bool:
     if status_code == 200:
         return True
     elif status_code == 403 or status_code == 429:
-        print("hit rate limit, wait one hour. breaking")
-        return False
+        print("hit rate limit, sleeping for one hour")
+        from time import sleep
+
+        sleep(3600)
+        return True
     else:
         print(f"status code: {status_code}. breaking")
         return False
