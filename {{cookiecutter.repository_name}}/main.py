@@ -473,6 +473,8 @@ def st_dashboard():
     import matplotlib.pyplot as plt
     import streamlit as st
 
+    st.set_page_config(layout="wide")
+
     st.title(f"{REPO} GitHub explorer")
 
     st.markdown(
@@ -489,8 +491,8 @@ def st_dashboard():
 
     df_users = pd.read_parquet(f"{SNAPSHOT_FOLDER}/users.parquet")
 
-    status = st.sidebar.selectbox("status:", ["open", "closed"])
-    content_type = st.sidebar.selectbox("content:", ["issues", "prs"])
+    status = st.selectbox("status:", ["open", "closed"])
+    content_type = st.selectbox("content:", ["issues", "prs"])
 
     df = pd.read_parquet(f"{SNAPSHOT_FOLDER}/{status}_{content_type}.parquet")
 
@@ -532,11 +534,11 @@ def st_dashboard():
         st.pyplot(fig)
 
     st.markdown(
-        "Use the LLM below to ask questions such as "
-        "**'What type of company is X?'** "
-        "or generic questions such as "
-        f"**'Why would X use {REPO}?'** "
-        "but don't expect a great result. "
+        "Use the LLM below to ask questions such as:"
+        " - **'What type of company is X?'** "
+        "or generic questions such as:"
+        f" - **'Why would company X use {REPO}?'** "
+        "but don't expect great results. "
         "We will use the GitHub data to refine this question later. "
     )
 
@@ -590,7 +592,7 @@ def st_dashboard():
             popup=folium.Popup(popup, max_width=300),
             icon=icon,
         ).add_to(m)
-        st_folium(m, width=1000)
+    st_folium(m, width=1000)
 
     st.subheader("Users")
 
@@ -599,10 +601,10 @@ def st_dashboard():
         We can explore the GitHub data to understand what developers are interested in 
         and to ensure their requested features or bug are taken into account in the roadmap
         You can ask questions such as: 
-        - **What issues are X most interested in?**
-        - **What issue has the most reactions?**
+        - **What issues are company X most interested in?**
+        - **What issue has the most total reactions?**
         - **What company posted the issue with the most reactions?**
-        - **What are the top 5 issues with the most most reactions?**
+        - **What are the top 5 issues with the most reactions?**
         """
     )
 
@@ -641,7 +643,7 @@ def st_dashboard():
 if __name__ == "__main__":
     import sys
 
-    if len(sys.argv) > 1 and sys.argv[1] == "streamlit":
+    if len(sys.argv) == 1:
         st_dashboard()
     else:
         import argparse
