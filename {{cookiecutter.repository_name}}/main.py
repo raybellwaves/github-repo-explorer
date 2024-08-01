@@ -463,9 +463,6 @@ def create_df(
 
 
 def st_dashboard():
-    """
-    1) Who are the users?
-    """
     from streamlit_folium import st_folium
     import pandas as pd
     from langchain_experimental.agents import create_pandas_dataframe_agent
