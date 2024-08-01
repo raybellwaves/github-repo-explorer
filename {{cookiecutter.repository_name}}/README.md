@@ -42,6 +42,11 @@ python main.py create_df --states open --content_types issues
 python main.py create_df --states open closed --content_types issues prs
 ```
 
+Create a vector database
+```
+python main.py create_vector_db
+```
+
 Run the dashboard
 ```
 streamlit run main.py

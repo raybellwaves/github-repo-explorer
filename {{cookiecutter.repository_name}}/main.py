@@ -462,6 +462,40 @@ def create_df(
     return None
 
 
+def create_vector_db() -> None:
+    import pickle
+    import pandas as pd
+    from langchain_openai import OpenAIEmbeddings
+    from pymilvus import MilvusClient
+
+    df = pd.read_parquet(f"{SNAPSHOT_FOLDER}/open_issues.parquet")
+    _df = df[OPEN_ISSUE_COLUMNS].copy()
+    _df["issue_label_names"] = _df["issue_label_names"].apply(tuple)
+    # Limit to 100 rows for demo purposes
+    _df = _df.drop_duplicates().head(100)
+    embeddings_model = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
+    embeddings = embeddings_model.embed_documents(
+        _df["issue_body"].fillna("").values
+    )  # ndocs x 1536
+    with open(f"{REPO}_embeddings.pkl", "wb") as f:
+        pickle.dump(embeddings, f)
+    data = [
+        {
+            "id": row["number"],
+            "vector": embeddings[i],
+            "text": row["issue_text"],
+            "subject": row["LLM_title_subject"],
+        }
+        for i, row in df.iterrows()
+    ]
+
+    client = MilvusClient(f"./milvus_{REPO.replace('-', '_')}.db")
+    client.create_collection(
+        collection_name=f"{REPO.replace('-', '_')}_issue_text", dimension=1536
+    )
+    _ = client.insert(collection_name=f"{REPO.replace('-', '_')}_issue_text", data=data)
+
+
 def st_dashboard():
     from streamlit_folium import st_folium
     import pandas as pd
@@ -494,7 +528,6 @@ def st_dashboard():
 
     df = pd.read_parquet(f"{SNAPSHOT_FOLDER}/{status}_{content_type}.parquet")
 
-    # if df is empty print empty
     if df.empty:
         st.write("No data available for the selected criteria.")
     else:
@@ -611,7 +644,7 @@ def st_dashboard():
     )
 
     df = pd.read_parquet(f"{SNAPSHOT_FOLDER}/open_issues.parquet")
-    _df = df[OPEN_ISSUE_COLUMNS]
+    _df = df[OPEN_ISSUE_COLUMNS].copy()
     _df["issue_label_names"] = _df["issue_label_names"].apply(tuple)
     # Limit to 100 rows for demo purposes
     _df = _df.drop_duplicates().head(100)
