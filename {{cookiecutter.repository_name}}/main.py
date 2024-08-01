@@ -721,7 +721,7 @@ def st_dashboard():
     _df = df[ISSUE_COLUMNS].copy()
     _df["issue_label_names"] = _df["issue_label_names"].apply(tuple)
 
-    st_limit_rows = st.selectbox("limit rows:", [10, 25, 50, 100])
+    st_limit_rows = st.selectbox("limit rows:", [10, 25, 50, 100, 250, 500, 1000])
 
     _df_filtered = _df.drop_duplicates().head(st_limit_rows).reset_index(drop=True)
 
