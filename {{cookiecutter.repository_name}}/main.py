@@ -473,8 +473,6 @@ def st_dashboard():
     import matplotlib.pyplot as plt
     import streamlit as st
 
-    st.set_page_config(layout="wide")
-
     st.title(f"{REPO} GitHub explorer")
 
     st.markdown(
@@ -496,42 +494,46 @@ def st_dashboard():
 
     df = pd.read_parquet(f"{SNAPSHOT_FOLDER}/{status}_{content_type}.parquet")
 
-    tab1, tab2 = st.tabs(["Posters", "Commenters"])
-    with tab1:
-        _df = df[
-            [f"{content_type[:-1]}_user_login", f"{content_type[:-1]}_user_company"]
-        ].drop_duplicates()
-        _counts = _df[f"{content_type[:-1]}_user_company"].value_counts()
-        fig, ax = plt.subplots(figsize=(10, 6))
-        _counts.plot(
-            kind="bar",
-            ax=ax,
-            xlabel="Company",
-            ylabel="Count",
-            title=f"Count of company employees who create {content_type} in the {REPO} repo",
-        )
-        plt.xticks(rotation=45, ha="right")
-        plt.tight_layout()
-        st.pyplot(fig)
-    with tab2:
-        _df = df[
-            [
-                f"{content_type[:-1]}_comment_user_login",
-                f"{content_type[:-1]}_comment_user_company",
-            ]
-        ].drop_duplicates()
-        _counts = _df[f"{content_type[:-1]}_comment_user_company"].value_counts()
-        fig, ax = plt.subplots(figsize=(10, 6))
-        _counts.plot(
-            kind="bar",
-            ax=ax,
-            xlabel="Company",
-            ylabel="Count",
-            title=f"Count of companies employees who comment on {content_type} in the {REPO} repo",
-        )
-        plt.xticks(rotation=45, ha="right")
-        plt.tight_layout()
-        st.pyplot(fig)
+    # if df is empty print empty
+    if df.empty:
+        st.write("No data available for the selected criteria.")
+    else:
+        tab1, tab2 = st.tabs(["Posters", "Commenters"])
+        with tab1:
+            _df = df[
+                [f"{content_type[:-1]}_user_login", f"{content_type[:-1]}_user_company"]
+            ].drop_duplicates()
+            _counts = _df[f"{content_type[:-1]}_user_company"].value_counts()
+            fig, ax = plt.subplots(figsize=(10, 6))
+            _counts.plot(
+                kind="bar",
+                ax=ax,
+                xlabel="Company",
+                ylabel="Count",
+                title=f"Count of company employees who create {content_type} in the {REPO} repo",
+            )
+            plt.xticks(rotation=45, ha="right")
+            plt.tight_layout()
+            st.pyplot(fig)
+        with tab2:
+            _df = df[
+                [
+                    f"{content_type[:-1]}_comment_user_login",
+                    f"{content_type[:-1]}_comment_user_company",
+                ]
+            ].drop_duplicates()
+            _counts = _df[f"{content_type[:-1]}_comment_user_company"].value_counts()
+            fig, ax = plt.subplots(figsize=(10, 6))
+            _counts.plot(
+                kind="bar",
+                ax=ax,
+                xlabel="Company",
+                ylabel="Count",
+                title=f"Count of companies employees who comment on {content_type} in the {REPO} repo",
+            )
+            plt.xticks(rotation=45, ha="right")
+            plt.tight_layout()
+            st.pyplot(fig)
 
     st.markdown(
         "Use the LLM below to ask questions such as:"
