@@ -13,6 +13,7 @@ jupyterlab
 langchain
 langchain-cli
 langchain-experimental
+langchain-google-genai
 langchain-openai
 llm
 mapclassify

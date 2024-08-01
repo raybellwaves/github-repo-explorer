@@ -96,6 +96,11 @@ except KeyError:
     print("env var OPENAI_API_KEY not found")
     OPENAI_API_KEY = ""
 try:
+    GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+except KeyError:
+    print("env var GOOGLE_API_KEY not found")
+    GOOGLE_API_KEY = ""
+try:
     GITHUB_API_TOKEN = os.environ.get("GITHUB_API_TOKEN")
 except KeyError:
     print("env var GITHUB_API_TOKEN not found")
