@@ -41,3 +41,8 @@ python main.py create_df --states open --content_types issues
 # Concat open and closed issues and open and closed PRs
 python main.py create_df --states open closed --content_types issues prs
 ```
+
+Run the dashboard
+```
+streamlit run main.py
+```
