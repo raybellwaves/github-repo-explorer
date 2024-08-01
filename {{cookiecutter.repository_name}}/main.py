@@ -465,7 +465,10 @@ def create_df(
 def st_dashboard():
     from streamlit_folium import st_folium
     import pandas as pd
+    import folium
+    from folium import CustomIcon
     from langchain_experimental.agents import create_pandas_dataframe_agent
+    from langchain_openai import OpenAI as OpenAI_langchain
     import geopandas as gpd
     import matplotlib.pyplot as plt
     import streamlit as st
@@ -477,7 +480,7 @@ def st_dashboard():
     This dashboard can help with a variety of personas:
     - PM: Identification of users/leads.
     - DevRel/SA: Identify common developer pain points.
-    - Maintainer: Identify most common requested features.
+    - Maintainer: Identify most common requested features. Indenitify sponsor opportunities.
     - User: Indentify other companies. Are they hiring?
     """
     )
@@ -549,7 +552,7 @@ def st_dashboard():
     st.subheader("Community")
 
     st.markdown(
-        f"We can explore the location of users. "
+        "We can explore the location of users. "
         "This can help with event planning and community building."
     )
 
@@ -564,9 +567,7 @@ def st_dashboard():
     m = gdf.explore()
     for idx, row in gdf.iterrows():
         icon = CustomIcon(
-            icon_image=row['user_avatar_url'],
-            icon_size=(30, 30),
-            icon_anchor=(15, 15)
+            icon_image=row["user_avatar_url"], icon_size=(30, 30), icon_anchor=(15, 15)
         )
         popup = f"""
         <b>{row['user_name']}</b><br>
@@ -587,14 +588,14 @@ def st_dashboard():
         folium.Marker(
             location=[row.geometry.y, row.geometry.x],
             popup=folium.Popup(popup, max_width=300),
-            icon=icon
+            icon=icon,
         ).add_to(m)
         st_folium(m, width=1000)
 
     st.subheader("Users")
 
     st.markdown(
-        f"""
+        """
         We can explore the GitHub data to understand what developers are interested in 
         and to ensure their requested features or bug are taken into account in the roadmap
         You can ask questions such as: 
@@ -607,7 +608,7 @@ def st_dashboard():
 
     df = pd.read_parquet(f"{SNAPSHOT_FOLDER}/open_issues.parquet")
     _df = df[OPEN_ISSUE_COLUMNS]
-    _df['issue_label_names'] = _df['issue_label_names'].apply(tuple)
+    _df["issue_label_names"] = _df["issue_label_names"].apply(tuple)
     # Limit to 100 rows for demo purposes
     _df = _df.drop_duplicates().head(100)
     if openai_api_key:
@@ -623,10 +624,10 @@ def st_dashboard():
         )
     content = st.text_input(
         f"Ask questions about about {REPO} users and developers such as:",
-        f"What issues has the company X created?",
+        "What issues has the company X created?",
     )
     if openai_api_key:
-        response = agent_response(agent, content)
+        response = _agent_response(agent, content)
         st.write(response)
         if ":" in response:
             response = response.split(":")[1].strip()
@@ -635,6 +636,7 @@ def st_dashboard():
         "We will now use a vector database to query matching issues. "
         "This can help first time posters find similar issues"
     )
+
 
 if __name__ == "__main__":
     import argparse
