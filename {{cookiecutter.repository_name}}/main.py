@@ -537,7 +537,9 @@ def st_dashboard():
     from streamlit_folium import st_folium
     import pandas as pd
     import folium
+    from pymilvus import MilvusClient
     from folium import CustomIcon
+    from langchain_openai import OpenAIEmbeddings
     from langchain_experimental.agents import create_pandas_dataframe_agent
     from langchain_openai import OpenAI as OpenAI_langchain
     import geopandas as gpd
@@ -684,7 +686,7 @@ def st_dashboard():
     _df = df[ISSUE_COLUMNS].copy()
     _df["issue_label_names"] = _df["issue_label_names"].apply(tuple)
     # Limit to 100 rows for demo purposes
-    _df = _df.drop_duplicates().head(100)
+    _df = _df.drop_duplicates().head(100).reset_index(drop=True)
     if openai_api_key:
         agent = create_pandas_dataframe_agent(
             OpenAI_langchain(
@@ -710,6 +712,20 @@ def st_dashboard():
         "We will now use a vector database to query matching issues. "
         "This can help first time posters find similar issues"
     )
+    if openai_api_key:
+        embeddings_model = OpenAIEmbeddings(api_key=openai_api_key)
+        question = f"What issues are similar to {response}?"
+        question_embeddings = embeddings_model.embed_documents([question])
+        client = MilvusClient(f"{SNAPSHOT_FOLDER}/milvus.db")
+        res = client.search(
+            collection_name="open_issues",
+            data=question_embeddings,
+            limit=3,
+        )
+        similar_issue_1 = res[0][0]["id"]
+        similar_issue_2 = res[0][1]["id"]
+        st.dataframe(_df[_df["number"] == similar_issue_1])
+        st.dataframe(_df[_df["number"] == similar_issue_2])
 
 
 if __name__ == "__main__":
