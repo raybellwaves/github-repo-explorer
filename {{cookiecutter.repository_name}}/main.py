@@ -4,23 +4,6 @@ import time
 import requests
 import pandas as pd
 
-try:
-    OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-except KeyError:
-    print("env var OPENAI_API_KEY not found")
-    OPENAI_API_KEY = ""
-try:
-    GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
-except KeyError:
-    print("env var GOOGLE_API_KEY not found")
-    GOOGLE_API_KEY = ""
-try:
-    GITHUB_API_TOKEN = os.environ.get("GITHUB_API_TOKEN")
-except KeyError:
-    print("env var GITHUB_API_TOKEN not found")
-    GITHUB_API_TOKEN = ""
-
-
 ORG = "{{cookiecutter.github_organization}}"
 REPO = "{{cookiecutter.github_repository}}"
 LLM_CHAT_FRAMEWORK = "{{cookiecutter.llm_chat_framework}}"
@@ -145,6 +128,39 @@ def _get_with_retry(url):
             return response
     print(f"Max retries reached. Last status code: {response.status_code}")
     return response
+
+
+def _geocode_with_retry(location, max_retries=3, timeout=30):
+    from geopy.exc import GeocoderUnavailable
+    from time import sleep
+    from geopy.geocoders import Photon
+
+    geolocator = Photon()
+
+    for attempt in range(max_retries):
+        try:
+            geocoded_location = geolocator.geocode(location, timeout=timeout)
+            if geocoded_location:
+                return geocoded_location
+            else:
+                print(f"Location not found: {location}")
+                return None
+        except GeocoderUnavailable:
+            if attempt < max_retries - 1:
+                sleep_time = 2**attempt
+                print(
+                    f"Geocoding attempt {attempt + 1} failed. Retrying in {sleep_time} seconds..."
+                )
+                sleep(sleep_time)
+            else:
+                print(
+                    f"Geocoding failed after {max_retries} attempts for location: {location}"
+                )
+                return None
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            return None
+    return None
 
 
 def _json_content_check(json_content) -> bool:
@@ -308,9 +324,9 @@ def scrape_gh(
                         ]
                     with open(filename, "w") as f:
                         json.dump(detail_response_json, f, indent=4)
+                    # Save the user who create the issue or PR
                     users.add(detail_response_json["user"]["login"])
-                    # Reactions for PRs can be found in the issue endpoint
-                    # Get comments data
+                    # Get comments data if comments (which is n_comments) > 0
                     if detail_response_json["comments"] > 0:
                         filename = f"{comment_folder}/" f"comments_{padded_number}.json"
                         comments_url = f"{GH_API_URL_PREFIX}issues/{number}/comments"
@@ -322,8 +338,11 @@ def scrape_gh(
                             break
                         with open(filename, "w") as f:
                             json.dump(comments_response_json, f, indent=4)
-                        users.add(detail_response_json["user"]["login"])
+                        # Save the users who have commented on the issue or pr
+                        for comment in comments_response_json:
+                            users.add(comments_response_json["user"]["login"])
             page += 1
+
     # Scrape users
     users_list = list(users)
     folder = f"{SNAPSHOT_FOLDER}/users"
@@ -339,10 +358,7 @@ def scrape_gh(
         # Add geo column
         if GEOLOCATER_FRAMEWORK != "None":
             if GEOLOCATER_FRAMEWORK == "photon":
-                from geopy.geocoders import Photon
-
-                geolocator = Photon()
-                geocoded_location = geolocator.geocode(user_detail["location"])
+                geocoded_location = _geocode_with_retry(user_detail["location"])
                 if geocoded_location is not None:
                     user_detail["location_lat"] = geocoded_location.latitude
                     user_detail["location_lon"] = geocoded_location.longitude
