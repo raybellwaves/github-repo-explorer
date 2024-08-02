@@ -734,27 +734,31 @@ def st_dashboard():
     )
 
     if st_llm_agent_framework == "openai":
-        agent = create_pandas_dataframe_agent(
-            OpenAI_langchain(
-                temperature=0,
-                model="gpt-3.5-turbo-instruct",
-                openai_api_key=openai_api_key,
-            ),
-            _df_filtered,
-            allow_dangerous_code=True,
-            verbose=True,
-        )
+        if openai_api_key:
+            agent_api_key = openai_api_key
+            agent = create_pandas_dataframe_agent(
+                OpenAI_langchain(
+                    temperature=0,
+                    model="gpt-3.5-turbo-instruct",
+                    openai_api_key=openai_api_key,
+                ),
+                _df_filtered,
+                allow_dangerous_code=True,
+                verbose=True,
+            )
     elif st_llm_agent_framework == "google":
         google_api_key = st.text_input("Google API Key:", type="password")
-        agent = create_pandas_dataframe_agent(
-            ChatGoogleGenerativeAI(
-                model="gemini-1.5-flash",
-                google_api_key=google_api_key,
-            ),
-            _df_filtered,
-            allow_dangerous_code=True,
-            verbose=True,
-        )
+        if google_api_key:
+            agent_api_key = google_api_key
+            agent = create_pandas_dataframe_agent(
+                ChatGoogleGenerativeAI(
+                    model="gemini-1.5-flash",
+                    google_api_key=google_api_key,
+                ),
+                _df_filtered,
+                allow_dangerous_code=True,
+                verbose=True,
+            )
     else:
         agent = None
 
@@ -762,7 +766,6 @@ def st_dashboard():
         "Ask questions about about users and developers such as:",
         "What issues has the company X created?",
     )
-
     if agent is not None:
         response = _agent_response(agent, content)
         st.write(response)
@@ -777,12 +780,13 @@ def st_dashboard():
         if openai_api_key:
             embeddings_model = OpenAIEmbeddings(api_key=openai_api_key)
             question = f"What issues are similar to {response}?"
+            # Look up values for the vector db matching the question
             question_embeddings = embeddings_model.embed_documents([question])
             client = MilvusClient(f"{SNAPSHOT_FOLDER}/milvus.db")
             res = client.search(
                 collection_name="open_issues",
                 data=question_embeddings,
-                limit=3,
+                limit=2,
             )
             similar_issue_1 = res[0][0]["id"]
             similar_issue_2 = res[0][1]["id"]
