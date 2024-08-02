@@ -822,7 +822,6 @@ def run_all(
     create_df(states=states, content_types=content_types)
     create_vector_db(states=states, content_types=content_types)
     return None
-)
 
 
 if __name__ == "__main__":
