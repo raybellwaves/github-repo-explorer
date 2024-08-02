@@ -355,20 +355,6 @@ def scrape_gh(
         user_detail = user_detail_response.json()
         if not _json_content_check(detail_response2_json):
             break
-        # Add geo column
-        if GEOLOCATER_FRAMEWORK != "None":
-            if GEOLOCATER_FRAMEWORK == "photon":
-                geocoded_location = _geocode_with_retry(user_detail["location"])
-                if geocoded_location is not None:
-                    user_detail["location_lat"] = geocoded_location.latitude
-                    user_detail["location_lon"] = geocoded_location.longitude
-                else:
-                    user_detail["location_lat"] = None
-                    user_detail["location_lon"] = None
-            else:
-                raise ValueError(
-                    f"Unsupported geolocator framework: {GEOLOCATER_FRAMEWORK}"
-                )
         file_path = os.path.join(folder, f"user_detail_{username}.json")
         with open(file_path, "w") as f:
             json.dump(user_detail, f, indent=4)
@@ -398,6 +384,20 @@ def create_df(
         with open(f"{folder}/{file}", "r") as f:
             data = json.load(f)
         _df = pd.json_normalize(data)
+        # geolocate users
+        if GEOLOCATER_FRAMEWORK != "None":
+            if GEOLOCATER_FRAMEWORK == "photon":
+                geocoded_location = _geocode_with_retry(_df["location"][0])
+                if geocoded_location is not None:
+                    _df["location_lat"] = geocoded_location.latitude
+                    _df["location_lon"] = geocoded_location.longitude
+                else:
+                    _df["location_lat"] = None
+                    _df["location_lon"] = None
+            else:
+                raise ValueError(
+                    f"Unsupported geolocator framework: {GEOLOCATER_FRAMEWORK}"
+                )
         for col in ["created_at", "updated_at"]:
             _df[col] = pd.Timestamp(_df[col][0])
         _df = _df[USER_COLUMNS]
@@ -524,43 +524,46 @@ def create_vector_db(
         for content_type in content_types:
             print(f"Creating vector db for {state} {content_type}")
             df = pd.read_parquet(f"{SNAPSHOT_FOLDER}/{state}_{content_type}.parquet")
-            if content_type == "issues":
-                _df = df[
-                    ISSUE_COLUMNS + [f"{content_type[:-1]}_LLM_title_subject"]
-                ].copy()
-            else:
-                _df = df[PR_COLUMNS + [f"{content_type[:-1]}_LLM_title_subject"]].copy()
-            _df[f"{content_type[:-1]}_label_names"] = _df[
-                f"{content_type[:-1]}_label_names"
-            ].apply(tuple)
-            _df = _df.drop_duplicates().reset_index(drop=True)
-            if EMBEDDINGS_FRAMEWORK == "openai":
-                embeddings_model = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
-            embeddings = embeddings_model.embed_documents(
-                _df[f"{content_type[:-1]}_body"].fillna("").values
-            )  # ndocs x 1536
-            with open(
-                f"{SNAPSHOT_FOLDER}/{state}_{content_type}_embeddings.pkl", "wb"
-            ) as f:
-                pickle.dump(embeddings, f)
-            data = [
-                {
-                    "id": row["number"],
-                    "vector": embeddings[i],
-                    "text": row[f"{content_type[:-1]}_body"],
-                    "subject": row[f"{content_type[:-1]}_LLM_title_subject"],
-                }
-                for i, row in _df.iterrows()
-            ]
+            if not df.empty:
+                if content_type == "issues":
+                    _df = df[
+                        ISSUE_COLUMNS + [f"{content_type[:-1]}_LLM_title_subject"]
+                    ].copy()
+                else:
+                    _df = df[
+                        PR_COLUMNS + [f"{content_type[:-1]}_LLM_title_subject"]
+                    ].copy()
+                _df[f"{content_type[:-1]}_label_names"] = _df[
+                    f"{content_type[:-1]}_label_names"
+                ].apply(tuple)
+                _df = _df.drop_duplicates().reset_index(drop=True)
+                if EMBEDDINGS_FRAMEWORK == "openai":
+                    embeddings_model = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
+                embeddings = embeddings_model.embed_documents(
+                    _df[f"{content_type[:-1]}_body"].fillna("").values
+                )  # ndocs x 1536
+                with open(
+                    f"{SNAPSHOT_FOLDER}/{state}_{content_type}_embeddings.pkl", "wb"
+                ) as f:
+                    pickle.dump(embeddings, f)
+                data = [
+                    {
+                        "id": row["number"],
+                        "vector": embeddings[i],
+                        "text": row[f"{content_type[:-1]}_body"],
+                        "subject": row[f"{content_type[:-1]}_LLM_title_subject"],
+                    }
+                    for i, row in _df.iterrows()
+                ]
 
-            client.create_collection(
-                collection_name=f"{state}_{content_type}",
-                dimension=1536,
-            )
-            _ = client.insert(
-                collection_name=f"{state}_{content_type}",
-                data=data,
-            )
+                client.create_collection(
+                    collection_name=f"{state}_{content_type}",
+                    dimension=1536,
+                )
+                _ = client.insert(
+                    collection_name=f"{state}_{content_type}",
+                    data=data,
+                )
     return None
 
 
