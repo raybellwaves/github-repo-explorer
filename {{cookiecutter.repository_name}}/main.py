@@ -345,7 +345,7 @@ def scrape_gh(
                         comments_response_json = comments_response.json()
                         if not _json_content_check(comments_response_json):
                             break
-                        # Exclude bots
+                        # Exclude bots in comments
                         comments_response_json = [
                             comment
                             for comment in comments_response_json
