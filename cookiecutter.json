@@ -2,7 +2,7 @@
     "github_organization": "Name of the GitHub organization the repository is associated with",
     "github_repository": "Name of the GitHub repository",
     "llm_chat_framework": "openai, google or None",
-    "embeddings_framework": "openai, google or None",
+    "embeddings_framework": "openai or None",
     "llm_agent_framework": "openai, google or None",
     "geolocater_framework": "photon or None",
     "repository_name": "{{cookiecutter.github_repository}}-repo-explorer",

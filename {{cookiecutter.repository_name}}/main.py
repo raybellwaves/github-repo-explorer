@@ -539,6 +539,10 @@ def create_vector_db(
                 _df = _df.drop_duplicates().reset_index(drop=True)
                 if EMBEDDINGS_FRAMEWORK == "openai":
                     embeddings_model = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
+                else:
+                    raise ValueError(
+                        f"Unsupported embeddings framework: {EMBEDDINGS_FRAMEWORK}"
+                    )
                 embeddings = embeddings_model.embed_documents(
                     _df[f"{content_type[:-1]}_body"].fillna("").values
                 )  # ndocs x 1536
