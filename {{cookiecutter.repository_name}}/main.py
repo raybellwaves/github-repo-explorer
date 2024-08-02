@@ -340,7 +340,7 @@ def scrape_gh(
                             json.dump(comments_response_json, f, indent=4)
                         # Save the users who have commented on the issue or pr
                         for comment in comments_response_json:
-                            users.add(comments_response_json["user"]["login"])
+                            users.add(comment["user"]["login"])
             page += 1
 
     # Scrape users
