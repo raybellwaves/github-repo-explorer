@@ -185,6 +185,13 @@ def _chat_response(
             messages=[{"role": "user", "content": content}],
         )
         return response.choices[0].message.content
+    elif llm_chat_framework == "google":
+        import google.generativeai as genai
+
+        genai.configure(api_key=api_key)
+        client = genai.GenerativeModel(model_name="gemini-1.5-flash")
+        response = client.generate_content(content)
+        return response.text
     else:
         raise ValueError("Unsupported LLM chat framework")
 
