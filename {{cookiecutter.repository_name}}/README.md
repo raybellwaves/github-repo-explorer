@@ -31,6 +31,7 @@ python main.py scrape_gh --states open --content_types prs --verbose True
 # Scrape just closed PRs
 python main.py scrape_gh --states closed --content_types prs --verbose True
 # Scrape open and closed issues and open and closed PRs
+# for largish REPOs e.g. latest issue number is 10,000, run this over night
 python main.py scrape_gh --states open closed --content_types issues prs --verbose True
 ```
 

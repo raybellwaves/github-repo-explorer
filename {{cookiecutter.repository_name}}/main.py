@@ -1,5 +1,7 @@
 import os
 
+import time
+import requests
 import pandas as pd
 
 try:
@@ -121,23 +123,28 @@ except KeyError:
     GOOGLE_API_KEY = ""
 try:
     GITHUB_API_TOKEN = os.environ.get("GITHUB_API_TOKEN")
+    HEADERS = {"Authorization": f"token {GITHUB_API_TOKEN}"}
 except KeyError:
     print("env var GITHUB_API_TOKEN not found")
     GITHUB_API_TOKEN = ""
+    HEADERS = {}
 
 
-def _status_code_checks(status_code: int) -> bool:
-    if status_code == 200:
-        return True
-    elif status_code == 403 or status_code == 429:
-        print("hit rate limit, sleeping for one hour")
-        from time import sleep
-
-        sleep(3600)
-        return True
-    else:
-        print(f"status code: {status_code}. breaking")
-        return False
+def _get_with_retry(url):
+    for attempt in range(3):
+        response = requests.get(url, headers=HEADERS, timeout=10)
+        if response.status_code == 200:
+            return response
+        elif response.status_code in [403, 429]:
+            print(
+                f"Rate limit hit (status code: {response.status_code}). Retrying in 1 hour"
+            )
+            time.sleep(3600)
+        else:
+            print(f"Unexpected status code: {response.status_code}")
+            return response
+    print(f"Max retries reached. Last status code: {response.status_code}")
+    return response
 
 
 def _json_content_check(json_content) -> bool:
@@ -209,7 +216,6 @@ def scrape_gh(
     from tqdm.auto import tqdm
 
     GH_API_URL_PREFIX = f"https://api.github.com/repos/{ORG}/{REPO}/"
-    headers = {"Authorization": f"token {GITHUB_API_TOKEN}"}
 
     users = set()
     for state in states:
@@ -225,9 +231,7 @@ def scrape_gh(
             if verbose:
                 print(f"{gh_api_url_suffix=}")
             url = f"{GH_API_URL_PREFIX}{gh_api_url_suffix}"
-            response = requests.get(url, headers=headers)
-            if not _status_code_checks(response.status_code):
-                break
+            response = _get_with_retry(url)
             # list of ~100 issues or prs from most recent to oldest
             page_issues_or_prs = response.json()
             if not _json_content_check(page_issues_or_prs):
@@ -280,87 +284,45 @@ def scrape_gh(
                     filename = (
                         f"{folder}/{content_type[:-1]}_detail_{padded_number}.json"
                     )
-                    if os.path.exists(filename):
-                        if verbose:
-                            print(f"{filename} already exists")
-                        # Grab the users from these files
-                        with open(filename, "r") as f:
-                            data = json.load(f)
-                            users.add(data["user"]["login"])
-                        try:
-                            filename = (
-                                f"{comment_folder}/" f"comments_{padded_number}.json"
-                            )
-                            with open(filename, "r") as f:
-                                data = json.load(f)
-                                for comment in data:
-                                    users.add(comment["user"]["login"])
-                        except FileNotFoundError:
-                            pass
-                        continue
-                    else:
-                        detail_url = f"{GH_API_URL_PREFIX}{endpoint}/{number}"
-                        if verbose:
-                            print(f"{detail_url=}")
-                        detail_response = requests.get(
-                            detail_url, headers=headers, timeout=10
-                        )
-                        if not _status_code_checks(detail_response.status_code):
-                            break
-                        detail_response_json = detail_response.json()
-                        if not _json_content_check(detail_response_json):
-                            break
-                        # There is also a timeline API that could be included.
-                        # This contains information on cross posting issues or prs
+                    detail_url = f"{GH_API_URL_PREFIX}{endpoint}/{number}"
+                    if verbose:
+                        print(f"{detail_url=}")
+                    detail_response = _get_with_retry(detail_url)
+                    detail_response_json = detail_response.json()
+                    if not _json_content_check(detail_response_json):
+                        break
+                    # There is also a timeline API that could be included.
+                    # This contains information on cross posting issues or prs
 
-                        # Reactions for PRs can be found in the issue endpoint
-                        if content_type == "prs":
-                            detail_url2 = f"{GH_API_URL_PREFIX}issues/{number}"
-                            if verbose:
-                                print(f"{detail_url2=}")
-                            detail_response2 = requests.get(
-                                detail_url2, headers=headers, timeout=10
-                            )
-                            if not _status_code_checks(detail_response2.status_code):
-                                break
-                            detail_response2_json = detail_response2.json()
-                            if not _json_content_check(detail_response2_json):
-                                break
-                            detail_response_json["reactions"] = detail_response2_json[
-                                "reactions"
-                            ]
+                    # Reactions for PRs can be found in the issue endpoint
+                    if content_type == "prs":
+                        detail_url2 = f"{GH_API_URL_PREFIX}issues/{number}"
+                        if verbose:
+                            print(f"{detail_url2=}")
+                        detail_response2 = _get_with_retry(detail_url2)
+                        detail_response2_json = detail_response2.json()
+                        if not _json_content_check(detail_response2_json):
+                            break
+                        detail_response_json["reactions"] = detail_response2_json[
+                            "reactions"
+                        ]
+                    with open(filename, "w") as f:
+                        json.dump(detail_response_json, f, indent=4)
+                    users.add(detail_response_json["user"]["login"])
+                    # Reactions for PRs can be found in the issue endpoint
+                    # Get comments data
+                    if detail_response_json["comments"] > 0:
+                        filename = f"{comment_folder}/" f"comments_{padded_number}.json"
+                        comments_url = f"{GH_API_URL_PREFIX}issues/{number}/comments"
+                        if verbose:
+                            print(f"{comments_url=}")
+                        comments_response = _get_with_retry(comments_url)
+                        comments_response_json = comments_response.json()
+                        if not _json_content_check(comments_response_json):
+                            break
                         with open(filename, "w") as f:
-                            json.dump(detail_response_json, f, indent=4)
+                            json.dump(comments_response_json, f, indent=4)
                         users.add(detail_response_json["user"]["login"])
-                        # Reactions for PRs can be found in the issue endpo
-                        # Get comments data
-                        if detail_response_json["comments"] > 0:
-                            filename = (
-                                f"{comment_folder}/" f"comments_{padded_number}.json"
-                            )
-                            if os.path.exists(filename):
-                                if verbose:
-                                    print(f"{filename} already exists")
-                                continue
-                            else:
-                                comments_url = (
-                                    f"{GH_API_URL_PREFIX}issues/{number}/comments"
-                                )
-                                if verbose:
-                                    print(f"{comments_url=}")
-                                comments_response = requests.get(
-                                    comments_url, headers=headers, timeout=10
-                                )
-                                if not _status_code_checks(
-                                    comments_response.status_code
-                                ):
-                                    break
-                                comments_response_json = comments_response.json()
-                                if not _json_content_check(comments_response_json):
-                                    break
-                                with open(filename, "w") as f:
-                                    json.dump(comments_response_json, f, indent=4)
-                                users.add(detail_response_json["user"]["login"])
             page += 1
     # Scrape users
     users_list = list(users)
@@ -370,9 +332,7 @@ def scrape_gh(
         user_url = f"https://api.github.com/users/{username}"
         if verbose:
             print(f"{user_url=}")
-        user_detail_response = requests.get(user_url, headers=headers)
-        if not _status_code_checks(user_detail_response.status_code):
-            break
+        user_detail_response = _get_with_retry(user_url)
         user_detail = user_detail_response.json()
         if not _json_content_check(detail_response2_json):
             break
@@ -389,6 +349,10 @@ def scrape_gh(
                 else:
                     user_detail["location_lat"] = None
                     user_detail["location_lon"] = None
+            else:
+                raise ValueError(
+                    f"Unsupported geolocator framework: {GEOLOCATER_FRAMEWORK}"
+                )
         file_path = os.path.join(folder, f"user_detail_{username}.json")
         with open(file_path, "w") as f:
             json.dump(user_detail, f, indent=4)
