@@ -16,6 +16,8 @@ CREATED_AFTER_DATE = pd.Timestamp("{{cookiecutter.created_after_date}}", tz="UTC
 BOTS = [
     "GPUtester",
     "codecov[bot]",
+    "codecov-commenter",
+    "codecov-io",
     "dependabot[bot]",
     "github-actions[bot]",
     "pep8speaks",
@@ -343,11 +345,18 @@ def scrape_gh(
                         comments_response_json = comments_response.json()
                         if not _json_content_check(comments_response_json):
                             break
-                        with open(filename, "w") as f:
-                            json.dump(comments_response_json, f, indent=4)
-                        # Save the users who have commented on the issue or pr
-                        for comment in comments_response_json:
-                            users.add(comment["user"]["login"])
+                        # Exclude bots
+                        comments_response_json = [
+                            comment
+                            for comment in comments_response_json
+                            if comment["user"]["login"] not in BOTS
+                        ]
+                        if len(comments_response_json) > 1:
+                            with open(filename, "w") as f:
+                                json.dump(comments_response_json, f, indent=4)
+                            # Save the users who have commented on the issue or pr
+                            for comment in comments_response_json:
+                                users.add(comment["user"]["login"])
             page += 1
 
     # Scrape users
@@ -804,6 +813,18 @@ def st_dashboard():
                 st.dataframe(_df2)
 
 
+def run_all(
+    states=["open", "closed"],
+    content_types=["issues", "prs"],
+    verbose=False,
+):
+    scrape_gh(states=states, content_types=content_types, verbose=verbose)
+    create_df(states=states, content_types=content_types)
+    create_vector_db(states=states, content_types=content_types)
+    return None
+)
+
+
 if __name__ == "__main__":
     import sys
 
@@ -831,5 +852,11 @@ if __name__ == "__main__":
             create_df(states=args.states, content_types=args.content_types)
         elif args.function == "create_vector_db":
             create_vector_db(states=args.states, content_types=args.content_types)
+        elif args.function == "run_all":
+            run_all(
+                states=args.states,
+                content_types=args.content_types,
+                verbose=args.verbose,
+            )
         else:
             raise ValueError(f"Unknown function: {args.function}")
