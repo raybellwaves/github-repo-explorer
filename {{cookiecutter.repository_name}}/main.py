@@ -686,7 +686,6 @@ def st_dashboard():
     st.markdown(
         "We can explore the location of users. "
         "This can help with event planning and community building. "
-        "Click on a member to find out more information about them."
     )
 
     gdf = gpd.GeoDataFrame(
@@ -724,6 +723,8 @@ def st_dashboard():
             icon=icon,
         ).add_to(m)
     st_folium(m, width=900)
+
+    st.markdown("Click on a member to find out more information about them.")
 
     st.subheader("Users")
 
