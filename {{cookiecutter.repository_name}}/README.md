@@ -20,6 +20,11 @@ Remove the environment
 conda remove --name gre --all --y
 ```
 
+To scrape all content, summarize the titles using an LLM and geolocate users run
+```
+python main.py run_all --states open closed --content_types issues prs --verbose True
+```
+
 Scraping github:
 ```
 # Scrape just open issues
