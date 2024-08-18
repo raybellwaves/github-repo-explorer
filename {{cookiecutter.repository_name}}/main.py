@@ -606,10 +606,11 @@ def st_dashboard():
     st.markdown(
         """
     This dashboard can help with a variety of personas:
-    - PM: Identification of users/leads.
-    - DevRel/SA: Identify common developer pain points.
-    - Maintainer: Identify most common requested features. Indenitify sponsor opportunities.
-    - User: Indentify other companies. Are they hiring?
+    - Product Manager: Identification of users/leads.
+    - Developer Advocate / Solutions Architect: Identify common developer pain points.
+    - Software Engineer: Help develop the roadmap.
+    - Project Manager: Identify most common requested features.
+    - User: Indentify other companies who use this product. Are they hiring?
     """
     )
 
@@ -617,8 +618,8 @@ def st_dashboard():
 
     df_users = pd.read_parquet(f"{SNAPSHOT_FOLDER}/users.parquet")
 
-    status = st.selectbox("status:", ["open", "closed"])
     content_type = st.selectbox("content:", ["issues", "prs"])
+    status = st.selectbox("status:", ["open", "closed"])
 
     df = pd.read_parquet(f"{SNAPSHOT_FOLDER}/{status}_{content_type}.parquet")
 
@@ -684,7 +685,8 @@ def st_dashboard():
 
     st.markdown(
         "We can explore the location of users. "
-        "This can help with event planning and community building."
+        "This can help with event planning and community building. "
+        "Click on a member to find out more information about them."
     )
 
     gdf = gpd.GeoDataFrame(
@@ -721,14 +723,14 @@ def st_dashboard():
             popup=folium.Popup(popup, max_width=300),
             icon=icon,
         ).add_to(m)
-    st_folium(m, width=1000)
+    st_folium(m, width=900)
 
     st.subheader("Users")
 
     st.markdown(
         """
         We can explore the GitHub data to understand what developers are interested in 
-        and to ensure their requested features or bug are taken into account in the roadmap
+        and to ensure their requested features or bug report are taken into account in the roadmap
         You can ask questions such as: 
         - **What issues are company X most interested in?**
         - **What issue has the most total reactions?**
@@ -749,9 +751,9 @@ def st_dashboard():
         "agent framework:", ["google", "openai", "None"]
     )
 
+    created_agent = False
     if st_llm_agent_framework == "openai":
         if openai_api_key:
-            agent_api_key = openai_api_key
             agent = create_pandas_dataframe_agent(
                 OpenAI_langchain(
                     temperature=0,
@@ -762,10 +764,10 @@ def st_dashboard():
                 allow_dangerous_code=True,
                 verbose=True,
             )
+            created_agent = True
     elif st_llm_agent_framework == "google":
         google_api_key = st.text_input("Google API Key:", type="password")
         if google_api_key:
-            agent_api_key = google_api_key
             agent = create_pandas_dataframe_agent(
                 ChatGoogleGenerativeAI(
                     model="gemini-1.5-flash",
@@ -775,14 +777,13 @@ def st_dashboard():
                 allow_dangerous_code=True,
                 verbose=True,
             )
-    else:
-        agent = None
+            created_agent = True
 
     content = st.text_input(
         "Ask questions about about users and developers such as:",
         "What issues has the company X created?",
     )
-    if agent is not None:
+    if created_agent:
         response = _agent_response(agent, content)
         st.write(response)
         if ":" in response:
