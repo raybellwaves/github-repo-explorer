@@ -793,7 +793,8 @@ def st_dashboard():
     if EMBEDDINGS_FRAMEWORK != "None":
         st.markdown(
             "We will now use a vector database to query matching issues. "
-            "This can help first time posters find similar issues"
+            "This can help first time posters find similar issues. "
+            "(Requires OpenAI API key)"
         )
         if openai_api_key:
             embeddings_model = OpenAIEmbeddings(api_key=openai_api_key)
