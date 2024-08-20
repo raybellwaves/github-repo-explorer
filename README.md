@@ -24,7 +24,6 @@ geolocater_framework: e.g. photon
 repository_name: ENTER for default
 created_after_date: e.g. 2024-01-01 if just want content after a certain data
 current_date: ENTER for default
-
 ```
 
 You can then do:
