@@ -30,10 +30,24 @@ To view some anlytics of the data run:
 streamlit run main.py
 ```
 
-To deploy the dashboard do:
+To deploy the dashboard first push your repo to GitHub:
 ```
-...
+git add .
+git commit -m "init commit"
+git remote add origin git@github.com:raybellwaves/xskillscore-repo-explorer.git
+git push -u origin main
 ```
+
+I've opted to use streamlit Commuity Cloud but there are many other tools 
+to use including Hugging Face Spaces and py.cafe:
+```
+streamlit run main.py
+```
+Hit the Deploy button in the top right and Deploy now
+Sign in to streamlit Commuity Cloud using the GitHub button.
+Hit Deploy
+
+
 
 Just scraping GitHub:
 ```
