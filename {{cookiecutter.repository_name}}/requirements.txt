@@ -1,3 +1,5 @@
+geopandas
+folium
 mapclassify
 matplotlib
 langchain
