@@ -4,3 +4,5 @@ __pycache__/
 *.pkl
 
 .milvus.db.lock
+
+.ruff_cache
