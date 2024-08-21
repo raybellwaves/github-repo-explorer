@@ -47,8 +47,6 @@ Hit the Deploy button in the top right and Deploy now
 Sign in to streamlit Commuity Cloud using the GitHub button.
 Hit Deploy
 
-
-
 Just scraping GitHub:
 ```
 # Scrape just open issues
