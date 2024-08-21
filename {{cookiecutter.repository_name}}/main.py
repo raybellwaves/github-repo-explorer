@@ -234,7 +234,6 @@ def scrape_gh(
         raise ValueError("GITHUB_API_TOKEN not set")
     if verbose:
         print(f"{states=}, {content_types=}")
-    import requests
     import json
     import pandas as pd
 
