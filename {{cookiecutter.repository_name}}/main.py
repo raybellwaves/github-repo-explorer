@@ -740,11 +740,18 @@ def st_dashboard():
         """
     )
 
+    st.markdown(
+        "The limit rows is provided below to ensure you are able to fit the text "
+        "into the API calls. You will get more accruate results with more data."
+    )
+
     df = pd.read_parquet(f"{SNAPSHOT_FOLDER}/open_issues.parquet")
     _df = df[ISSUE_COLUMNS].copy()
     _df["issue_label_names"] = _df["issue_label_names"].apply(tuple)
 
-    st_limit_rows = st.selectbox("limit rows:", [10, 25, 50, 100, 250, 500, 1000])
+    st_limit_rows = st.selectbox(
+        "limit rows:", [10, 25, 50, 100, 250, 500, 1000, 10000]
+    )
 
     _df_filtered = _df.drop_duplicates().head(st_limit_rows).reset_index(drop=True)
 
@@ -809,8 +816,8 @@ def st_dashboard():
             )
             similar_issue_1 = res[0][0]["id"]
             similar_issue_2 = res[0][1]["id"]
-            _df1 = df[df["number"] == similar_issue_1]
-            _df2 = df[df["number"] == similar_issue_2]
+            _df1 = df[df["number"] == similar_issue_1].drop_duplicates()
+            _df2 = df[df["number"] == similar_issue_2].drop_duplicates()
             st.dataframe(_df1)
             if not _df1.equals(_df2):
                 st.dataframe(_df2)
