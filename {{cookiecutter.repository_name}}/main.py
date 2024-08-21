@@ -675,7 +675,8 @@ def st_dashboard():
     st.markdown("**You will need to pass an OpenAI API key to ask questions below:**")
     openai_api_key = st.text_input("OpenAI API Key:", type="password")
     content = st.text_input(
-        f"Ask questions about companies who use {REPO}:",
+        f"Ask questions about companies who use {REPO} "
+        "(replace X with a company listed above):",
         "What type of company is X?",
     )
     if openai_api_key:
@@ -730,8 +731,8 @@ def st_dashboard():
 
     st.markdown(
         """
-        We can explore the GitHub data to understand what developers are interested in 
-        and to ensure their requested features or bug report are taken into account in the roadmap
+        We can explore the GitHub data to understand what developers are interested in, 
+        and to ensure their requested features or bug report are taken into account in the roadmap.
         You can ask questions such as: 
         - **What issues are company X most interested in?**
         - **What issue has the most total reactions?**
@@ -796,7 +797,7 @@ def st_dashboard():
             "This can help first time posters find similar issues. "
             "(Requires OpenAI API key)"
         )
-        if openai_api_key:
+        if openai_api_key and created_agent:
             embeddings_model = OpenAIEmbeddings(api_key=openai_api_key)
             question = f"What issues are similar to {response}?"
             # Look up values for the vector db matching the question

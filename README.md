@@ -22,7 +22,7 @@ embeddings_framework: e.g. openai
 llm_agent_framework: e.g. google (large context)
 geolocater_framework: e.g. photon
 repository_name: ENTER for default
-created_after_date: e.g. 2024-01-01 if just want content after a certain data
+created_after_date: e.g. 2024-01-01 if just want content after 2024
 current_date: ENTER for default
 ```
 
