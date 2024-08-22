@@ -117,7 +117,7 @@ except KeyError:
 
 def _get_with_retry(url):
     for attempt in range(3):
-        response = requests.get(url, headers=HEADERS, timeout=10)
+        response = requests.get(url, headers=HEADERS, timeout=30)
         if response.status_code == 200:
             return response
         elif response.status_code in [403, 429]:
