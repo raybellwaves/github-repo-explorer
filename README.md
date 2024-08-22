@@ -15,6 +15,7 @@ pipx install cruft uv
 Fill in the template like below
 ```
 cruft create git@github.com:raybellwaves/github-repo-explorer.git
+
 github_organization: e.g. dask
 github_repository: e.g. dask
 llm_chat_framework: e.g. openai
