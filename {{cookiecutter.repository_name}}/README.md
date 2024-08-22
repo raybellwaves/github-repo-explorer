@@ -33,9 +33,9 @@ streamlit run main.py
 To deploy the dashboard first push your repo to GitHub:
 ```
 git add .
-git commit -m "init commit"
-git remote add origin git@github.com:raybellwaves/xskillscore-repo-explorer.git
-git push -u origin main
+git commit -m "add data"
+gh repo create --source=. --public
+git push --set-upstream origin main
 ```
 
 I've opted to use streamlit Commuity Cloud but there are many other tools 
