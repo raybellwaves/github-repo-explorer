@@ -533,6 +533,7 @@ def create_vector_db(
     from pymilvus import MilvusClient
 
     if os.path.exists(f"{SNAPSHOT_FOLDER}/milvus.db"):
+        print("Removing existing milvus db")
         os.remove(f"{SNAPSHOT_FOLDER}/milvus.db")
     client = MilvusClient(f"{SNAPSHOT_FOLDER}/milvus.db")
     for state in states:
@@ -816,8 +817,8 @@ def st_dashboard():
             )
             similar_issue_1 = res[0][0]["id"]
             similar_issue_2 = res[0][1]["id"]
-            _df1 = df[df["number"] == similar_issue_1].drop_duplicates()
-            _df2 = df[df["number"] == similar_issue_2].drop_duplicates()
+            _df1 = df[df["number"] == similar_issue_1]
+            _df2 = df[df["number"] == similar_issue_2]
             st.dataframe(_df1)
             if not _df1.equals(_df2):
                 st.dataframe(_df2)
@@ -835,6 +836,13 @@ def run_all(
 
 
 if __name__ == "__main__":
+    """
+    Example
+    -------
+    python main.py run_all --states open closed --content_types issues prs --verbose True
+
+    python main.py create_vector_db --states open closed --content_types issues prs
+    """
     import sys
 
     if len(sys.argv) == 1:
