@@ -23,6 +23,7 @@ BOTS = [
     "github-actions[bot]",
     "pep8speaks",
     "pre-commit-ci[bot]",
+    "rapids-bot[bot]",
     "review-notebook-app[bot]",
 ]
 
