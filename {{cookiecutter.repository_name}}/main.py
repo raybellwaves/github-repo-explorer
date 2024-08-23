@@ -18,6 +18,7 @@ BOTS = [
     "codecov[bot]",
     "codecov-commenter",
     "codecov-io",
+    "copy-pr-bot[bot]",
     "dependabot[bot]",
     "github-actions[bot]",
     "pep8speaks",
