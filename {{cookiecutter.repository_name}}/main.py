@@ -373,6 +373,7 @@ def scrape_gh(
         file_path = os.path.join(folder, f"user_detail_{username}.json")
         with open(file_path, "w") as f:
             json.dump(user_detail, f, indent=4)
+    print("successfully finished scraping")
     return None
 
 
