@@ -541,9 +541,6 @@ def create_vector_db(
     from langchain_openai import OpenAIEmbeddings
     from pymilvus import MilvusClient
 
-    if os.path.exists(f"{SNAPSHOT_FOLDER}/milvus.db"):
-        print("Removing existing milvus db")
-        os.remove(f"{SNAPSHOT_FOLDER}/milvus.db")
     client = MilvusClient(f"{SNAPSHOT_FOLDER}/milvus.db")
     for state in states:
         for content_type in content_types:
