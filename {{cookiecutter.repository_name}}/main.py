@@ -395,131 +395,137 @@ def create_df(
     from tqdm.auto import tqdm
 
     # Create a user dataframe
-    folder = f"{SNAPSHOT_FOLDER}/users"
-    files = sorted(os.listdir(folder))
-    users_df = pd.DataFrame()
-    for file in tqdm(files, "concatenating users"):
-        with open(f"{folder}/{file}", "r") as f:
-            data = json.load(f)
-        _df = pd.json_normalize(data)
-        # geolocate users
-        if GEOLOCATER_FRAMEWORK != "None":
-            if GEOLOCATER_FRAMEWORK == "photon":
-                geocoded_location = _geocode_with_retry(_df["location"][0])
-                if geocoded_location is not None:
-                    _df["location_lat"] = geocoded_location.latitude
-                    _df["location_lon"] = geocoded_location.longitude
+    if not os.path.exists(f"{SNAPSHOT_FOLDER}/users.parquet"):
+        folder = f"{SNAPSHOT_FOLDER}/users"
+        files = sorted(os.listdir(folder))
+        users_df = pd.DataFrame()
+        for file in tqdm(files, "concatenating users"):
+            with open(f"{folder}/{file}", "r") as f:
+                data = json.load(f)
+            _df = pd.json_normalize(data)
+            # geolocate users
+            if GEOLOCATER_FRAMEWORK != "None":
+                if GEOLOCATER_FRAMEWORK == "photon":
+                    geocoded_location = _geocode_with_retry(_df["location"][0])
+                    if geocoded_location is not None:
+                        _df["location_lat"] = geocoded_location.latitude
+                        _df["location_lon"] = geocoded_location.longitude
+                    else:
+                        _df["location_lat"] = None
+                        _df["location_lon"] = None
                 else:
-                    _df["location_lat"] = None
-                    _df["location_lon"] = None
-            else:
-                raise ValueError(
-                    f"Unsupported geolocator framework: {GEOLOCATER_FRAMEWORK}"
-                )
-        for col in ["created_at", "updated_at"]:
-            _df[col] = pd.Timestamp(_df[col][0])
-        _df = _df[USER_COLUMNS]
-        users_df = pd.concat([users_df, _df], ignore_index=True)
-    users_df = users_df.add_prefix("user_")
-    users_df.to_csv(f"{SNAPSHOT_FOLDER}/users.csv", index=False)
-    users_df.to_parquet(f"{SNAPSHOT_FOLDER}/users.parquet")
+                    raise ValueError(
+                        f"Unsupported geolocator framework: {GEOLOCATER_FRAMEWORK}"
+                    )
+            for col in ["created_at", "updated_at"]:
+                _df[col] = pd.Timestamp(_df[col][0])
+            _df = _df[USER_COLUMNS]
+            users_df = pd.concat([users_df, _df], ignore_index=True)
+        users_df = users_df.add_prefix("user_")
+        users_df.to_csv(f"{SNAPSHOT_FOLDER}/users.csv", index=False)
+        users_df.to_parquet(f"{SNAPSHOT_FOLDER}/users.parquet")
+    else:
+        users_df = pd.read_parquet(f"{SNAPSHOT_FOLDER}/users.parquet")
 
     for state in states:
         for content_type in content_types:
-            folder = f"{SNAPSHOT_FOLDER}/{state}_{content_type}"
-            files = sorted(os.listdir(folder))
-            df = pd.DataFrame()
-            for file in tqdm(files, f"concatenating {state} {content_type}"):
-                padded_number = file.split("_")[-1].split(".")[0]
-                with open(f"{folder}/{file}", "r") as f:
-                    data = json.load(f)
-                _df = pd.json_normalize(data)
-                # You can open or a issue or PR just just a title
-                if _df["body"][0] is None:
-                    _df["body"] = ""
-                _df["label_names"] = _df["labels"].apply(
-                    lambda x: [label["name"] for label in x]
-                    if isinstance(x, list)
-                    else []
-                )
-                _df["created_at"] = pd.Timestamp(_df["created_at"][0])
-                _df["url"] = _df["url"][0].replace(
-                    "https://api.github.com/repos/", "https://github.com/"
-                )
-                if LLM_CHAT_FRAMEWORK != "None":
-                    _df["LLM_title_subject"] = _chat_response(
-                        LLM_CHAT_FRAMEWORK,
-                        "Give me a one word summary of the following GitHub "
-                        f"{REPO} {content_type[:-1]} title: {_df['title'][0]}",
-                    )
-                    _df = _df[ISSUE_PR_COLUMNS + ["LLM_title_subject"]]
-                else:
-                    _df = _df[ISSUE_PR_COLUMNS]
-                _df = _df.rename(
-                    columns={"comments": "n_comments", "user.login": "user_login"}
-                )
-                _df = _df.add_prefix(f"{content_type[:-1]}_")
-                _df["number"] = int(padded_number)
-
-                # Read comment data if exists
-                comment_file = (
-                    f"{SNAPSHOT_FOLDER}/{state}_{content_type}_comments/"
-                    f"comments_{padded_number}.json"
-                )
-                if os.path.exists(comment_file):
-                    with open(comment_file, "r") as f:
+            if not os.path.exists(f"{SNAPSHOT_FOLDER}/{state}_{content_type}.parquet"):
+                folder = f"{SNAPSHOT_FOLDER}/{state}_{content_type}"
+                files = sorted(os.listdir(folder))
+                df = pd.DataFrame()
+                for file in tqdm(files, f"concatenating {state} {content_type}"):
+                    padded_number = file.split("_")[-1].split(".")[0]
+                    with open(f"{folder}/{file}", "r") as f:
                         data = json.load(f)
-                    _df2 = pd.json_normalize(data)
-                    _df2["created_at"] = pd.to_datetime(_df2["created_at"])
-                    _df2 = _df2[COMMENT_COLUMNS].copy()
-                    _df2 = _df2.rename(
-                        columns={
-                            "user.login": "user_login",
-                        }
+                    _df = pd.json_normalize(data)
+                    # You can open or a issue or PR just just a title
+                    if _df["body"][0] is None:
+                        _df["body"] = ""
+                    _df["label_names"] = _df["labels"].apply(
+                        lambda x: [label["name"] for label in x]
+                        if isinstance(x, list)
+                        else []
                     )
-                    _df2 = _df2.add_prefix(f"{content_type[:-1]}_comment_")
-                    _df2["number"] = int(padded_number)
-                else:
-                    # empty comment df
-                    _df2 = pd.DataFrame(
-                        {
-                            f"{content_type[:-1]}_comment_body": [""],
-                            f"{content_type[:-1]}_comment_created_at": [
-                                pd.Timestamp(
-                                    "{{cookiecutter.created_after_date}}", tz="UTC"
-                                )
-                            ],
-                            f"{content_type[:-1]}_comment_user_login": [""],
-                        }
+                    _df["created_at"] = pd.Timestamp(_df["created_at"][0])
+                    _df["url"] = _df["url"][0].replace(
+                        "https://api.github.com/repos/", "https://github.com/"
                     )
-                    _df2["number"] = int(padded_number)
-                # Join comments with issue/pr
-                _df = pd.merge(_df, _df2, on="number", how="left")
-                # Geta info about poster
-                _df = pd.merge(
-                    _df,
-                    users_df,
-                    left_on=f"{content_type[:-1]}_user_login",
-                    right_on="user_login",
-                    how="left",
-                )
-                for col in USER_COLUMNS:
-                    _df[f"{content_type[:-1]}_user_{col}"] = _df[f"user_{col}"]
-                    del _df[f"user_{col}"]
-                # Get info about commenters
-                _df = _df.merge(
-                    users_df,
-                    left_on=f"{content_type[:-1]}_comment_user_login",
-                    right_on="user_login",
-                    how="left",
-                )
-                for col in USER_COLUMNS:
-                    _df[f"{content_type[:-1]}_comment_user_{col}"] = _df[f"user_{col}"]
-                    del _df[f"user_{col}"]
+                    if LLM_CHAT_FRAMEWORK != "None":
+                        _df["LLM_title_subject"] = _chat_response(
+                            LLM_CHAT_FRAMEWORK,
+                            "Give me a one word summary of the following GitHub "
+                            f"{REPO} {content_type[:-1]} title: {_df['title'][0]}",
+                        )
+                        _df = _df[ISSUE_PR_COLUMNS + ["LLM_title_subject"]]
+                    else:
+                        _df = _df[ISSUE_PR_COLUMNS]
+                    _df = _df.rename(
+                        columns={"comments": "n_comments", "user.login": "user_login"}
+                    )
+                    _df = _df.add_prefix(f"{content_type[:-1]}_")
+                    _df["number"] = int(padded_number)
 
-                df = pd.concat([df, _df], axis=0).reset_index(drop=True)
-            df.to_csv(f"{SNAPSHOT_FOLDER}/{state}_{content_type}.csv", index=False)
-            df.to_parquet(f"{SNAPSHOT_FOLDER}/{state}_{content_type}.parquet")
+                    # Read comment data if exists
+                    comment_file = (
+                        f"{SNAPSHOT_FOLDER}/{state}_{content_type}_comments/"
+                        f"comments_{padded_number}.json"
+                    )
+                    if os.path.exists(comment_file):
+                        with open(comment_file, "r") as f:
+                            data = json.load(f)
+                        _df2 = pd.json_normalize(data)
+                        _df2["created_at"] = pd.to_datetime(_df2["created_at"])
+                        _df2 = _df2[COMMENT_COLUMNS].copy()
+                        _df2 = _df2.rename(
+                            columns={
+                                "user.login": "user_login",
+                            }
+                        )
+                        _df2 = _df2.add_prefix(f"{content_type[:-1]}_comment_")
+                        _df2["number"] = int(padded_number)
+                    else:
+                        # empty comment df
+                        _df2 = pd.DataFrame(
+                            {
+                                f"{content_type[:-1]}_comment_body": [""],
+                                f"{content_type[:-1]}_comment_created_at": [
+                                    pd.Timestamp(
+                                        "{{cookiecutter.created_after_date}}", tz="UTC"
+                                    )
+                                ],
+                                f"{content_type[:-1]}_comment_user_login": [""],
+                            }
+                        )
+                        _df2["number"] = int(padded_number)
+                    # Join comments with issue/pr
+                    _df = pd.merge(_df, _df2, on="number", how="left")
+                    # Geta info about poster
+                    _df = pd.merge(
+                        _df,
+                        users_df,
+                        left_on=f"{content_type[:-1]}_user_login",
+                        right_on="user_login",
+                        how="left",
+                    )
+                    for col in USER_COLUMNS:
+                        _df[f"{content_type[:-1]}_user_{col}"] = _df[f"user_{col}"]
+                        del _df[f"user_{col}"]
+                    # Get info about commenters
+                    _df = _df.merge(
+                        users_df,
+                        left_on=f"{content_type[:-1]}_comment_user_login",
+                        right_on="user_login",
+                        how="left",
+                    )
+                    for col in USER_COLUMNS:
+                        _df[f"{content_type[:-1]}_comment_user_{col}"] = _df[
+                            f"user_{col}"
+                        ]
+                        del _df[f"user_{col}"]
+
+                    df = pd.concat([df, _df], axis=0).reset_index(drop=True)
+                df.to_csv(f"{SNAPSHOT_FOLDER}/{state}_{content_type}.csv", index=False)
+                df.to_parquet(f"{SNAPSHOT_FOLDER}/{state}_{content_type}.parquet")
     return None
 
 
