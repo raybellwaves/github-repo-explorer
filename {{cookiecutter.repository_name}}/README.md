@@ -1,5 +1,7 @@
 # {{cookiecutter.repository_name}}
 
+The project has been created using https://github.com/raybellwaves/github-repo-explorer
+
 ## CLI commands
 
 To update your repo with the latest template (if there are updates) run:

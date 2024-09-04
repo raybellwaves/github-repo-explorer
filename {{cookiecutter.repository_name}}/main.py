@@ -222,7 +222,7 @@ def scrape_gh(
     verbose: bool = False,
 ) -> None:
     """
-    Puts data into eight folders:
+    Puts data into four folders:
     open_issues, closed_issues, open_prs, closed_prs
     These contain the titles and body
 
@@ -544,56 +544,77 @@ def create_vector_db(
     client = MilvusClient(f"{SNAPSHOT_FOLDER}/milvus.db")
     for state in states:
         for content_type in content_types:
-            print(f"Creating vector db for {state} {content_type}")
-            df = pd.read_parquet(f"{SNAPSHOT_FOLDER}/{state}_{content_type}.parquet")
-            if not df.empty:
-                if content_type == "issues":
-                    _df = df[
-                        ISSUE_COLUMNS + [f"{content_type[:-1]}_LLM_title_subject"]
-                    ].copy()
-                else:
-                    _df = df[
-                        PR_COLUMNS + [f"{content_type[:-1]}_LLM_title_subject"]
-                    ].copy()
-                _df[f"{content_type[:-1]}_label_names"] = _df[
-                    f"{content_type[:-1]}_label_names"
-                ].apply(tuple)
-                _df = _df.drop_duplicates().reset_index(drop=True)
-                if EMBEDDINGS_FRAMEWORK == "openai":
-                    embeddings_model = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
-                else:
-                    raise ValueError(
-                        f"Unsupported embeddings framework: {EMBEDDINGS_FRAMEWORK}"
-                    )
-                embeddings = embeddings_model.embed_documents(
-                    _df[f"{content_type[:-1]}_body"].fillna("").values
-                )  # ndocs x 1536
-                with open(
-                    f"{SNAPSHOT_FOLDER}/{state}_{content_type}_embeddings.pkl", "wb"
-                ) as f:
-                    pickle.dump(embeddings, f)
-                data = [
-                    {
-                        "id": row["number"],
-                        "vector": embeddings[i],
-                        "text": row[f"{content_type[:-1]}_body"],
-                        "subject": row[f"{content_type[:-1]}_LLM_title_subject"],
-                    }
-                    for i, row in _df.iterrows()
-                ]
+            if not os.path.exists(
+                f"{SNAPSHOT_FOLDER}/milvus_{state}_{content_type}.db"
+            ):
+                print(f"Creating vector db for {state} {content_type}")
+                df = pd.read_parquet(
+                    f"{SNAPSHOT_FOLDER}/{state}_{content_type}.parquet"
+                )
+                if not df.empty:
+                    if content_type == "issues":
+                        _df = df[
+                            ISSUE_COLUMNS + [f"{content_type[:-1]}_LLM_title_subject"]
+                        ].copy()
+                    else:
+                        _df = df[
+                            PR_COLUMNS + [f"{content_type[:-1]}_LLM_title_subject"]
+                        ].copy()
+                    _df[f"{content_type[:-1]}_label_names"] = _df[
+                        f"{content_type[:-1]}_label_names"
+                    ].apply(tuple)
+                    _df = _df.drop_duplicates().reset_index(drop=True)
+                    if EMBEDDINGS_FRAMEWORK == "openai":
+                        embeddings_model = OpenAIEmbeddings(
+                            api_key=OPENAI_API_KEY,
+                            show_progress_bar=True,
+                            skip_empty=True,
+                            chunk_size=500,
+                        )
+                    else:
+                        raise ValueError(
+                            f"Unsupported embeddings framework: {EMBEDDINGS_FRAMEWORK}"
+                        )
+                    if not os.path.exists(
+                        f"{SNAPSHOT_FOLDER}/{state}_{content_type}_embeddings.pkl"
+                    ):
+                        embeddings = embeddings_model.embed_documents(
+                            _df[f"{content_type[:-1]}_body"].fillna("").values
+                        )  # ndocs x 1536
+                        with open(
+                            f"{SNAPSHOT_FOLDER}/{state}_{content_type}_embeddings.pkl",
+                            "wb",
+                        ) as f:
+                            pickle.dump(embeddings, f)
+                    else:
+                        with open(
+                            f"{SNAPSHOT_FOLDER}/{state}_{content_type}_embeddings.pkl",
+                            "rb",
+                        ) as f:
+                            embeddings = pickle.load(f)
+                    data = [
+                        {
+                            "id": row["number"],
+                            "vector": embeddings[i],
+                            "text": row[f"{content_type[:-1]}_body"],
+                            "subject": row[f"{content_type[:-1]}_LLM_title_subject"],
+                        }
+                        for i, row in _df.iterrows()
+                    ]
 
-                client.create_collection(
-                    collection_name=f"{state}_{content_type}",
-                    dimension=1536,
-                )
-                _ = client.insert(
-                    collection_name=f"{state}_{content_type}",
-                    data=data,
-                )
+                    client.create_collection(
+                        collection_name=f"{state}_{content_type}",
+                        dimension=1536,
+                    )
+                    _ = client.insert(
+                        collection_name=f"{state}_{content_type}",
+                        data=data,
+                    )
     return None
 
 
 def st_dashboard():
+    # streamlit run main.py
     from streamlit_folium import st_folium
     import pandas as pd
     import folium
@@ -603,6 +624,7 @@ def st_dashboard():
     from langchain_google_genai import ChatGoogleGenerativeAI
     from langchain_experimental.agents import create_pandas_dataframe_agent
     from langchain_openai import OpenAI as OpenAI_langchain
+    from shapely.errors import GEOSException
     import geopandas as gpd
     import matplotlib.pyplot as plt
     import streamlit as st
@@ -610,7 +632,9 @@ def st_dashboard():
     st.title(f"{REPO} GitHub explorer")
 
     st.markdown(
-        """
+        f"""
+    The data for this dashboard can be found at https://github.com/raybellwaves/{REPO}-repo-explorer
+
     This dashboard can help with a variety of personas:
     - Product Manager: Identification of users/leads.
     - Developer Advocate / Solutions Architect: Identify common developer pain points.
@@ -705,30 +729,35 @@ def st_dashboard():
     )
     m = gdf.explore()
     for idx, row in gdf.iterrows():
-        icon = CustomIcon(
-            icon_image=row["user_avatar_url"], icon_size=(30, 30), icon_anchor=(15, 15)
-        )
-        popup = f"""
-        <b>{row['user_name']}</b><br>
-        <b>Bio:</b> {row['user_bio']}<br>
-        <b>Blog:</b> <a href="{row['user_blog']}" target="_blank">{row['user_blog']}</a><br>
-        <b>Company:</b> {row['user_company']}<br>
-        <b>Created at:</b> {row['user_created_at']}<br>
-        <b>Email:</b> {row['user_email']}<br>
-        <b>Followers:</b> {row['user_followers']}<br>
-        <b>Following:</b> {row['user_following']}<br>
-        <b>GitHub:</b> <a href="{row['user_html_url']}" target="_blank">{row['user_html_url']}</a><br>
-        <b>Location:</b> {row['user_location']}<br>
-        <b>Coordinates:</b> {row['user_location_lat']}, {row['user_location_lon']}<br>
-        <b>Login:</b> {row['user_login']}<br>
-        <b>Twitter:</b> {row['user_twitter_username'] if row['user_twitter_username'] else 'N/A'}<br>
-        <b>Updated at:</b> {row['user_updated_at']}
-        """
-        folium.Marker(
-            location=[row.geometry.y, row.geometry.x],
-            popup=folium.Popup(popup, max_width=300),
-            icon=icon,
-        ).add_to(m)
+        try:
+            icon = CustomIcon(
+                icon_image=row["user_avatar_url"],
+                icon_size=(30, 30),
+                icon_anchor=(15, 15),
+            )
+            popup = f"""
+            <b>{row['user_name']}</b><br>
+            <b>Bio:</b> {row['user_bio']}<br>
+            <b>Blog:</b> <a href="{row['user_blog']}" target="_blank">{row['user_blog']}</a><br>
+            <b>Company:</b> {row['user_company']}<br>
+            <b>Created at:</b> {row['user_created_at']}<br>
+            <b>Email:</b> {row['user_email']}<br>
+            <b>Followers:</b> {row['user_followers']}<br>
+            <b>Following:</b> {row['user_following']}<br>
+            <b>GitHub:</b> <a href="{row['user_html_url']}" target="_blank">{row['user_html_url']}</a><br>
+            <b>Location:</b> {row['user_location']}<br>
+            <b>Coordinates:</b> {row['user_location_lat']}, {row['user_location_lon']}<br>
+            <b>Login:</b> {row['user_login']}<br>
+            <b>Twitter:</b> {row['user_twitter_username'] if row['user_twitter_username'] else 'N/A'}<br>
+            <b>Updated at:</b> {row['user_updated_at']}
+            """
+            folium.Marker(
+                location=[row.geometry.y, row.geometry.x],
+                popup=folium.Popup(popup, max_width=300),
+                icon=icon,
+            ).add_to(m)
+        except GEOSException:
+            pass
     st_folium(m, width=900)
 
     st.markdown("Click on a member to find out more information about them.")
@@ -757,7 +786,7 @@ def st_dashboard():
     _df["issue_label_names"] = _df["issue_label_names"].apply(tuple)
 
     st_limit_rows = st.selectbox(
-        "limit rows:", [10, 25, 50, 100, 250, 500, 1000, 10000]
+        "limit rows:", [10, 25, 50, 100, 250, 500, 1000, 10000, 100000]
     )
 
     _df_filtered = _df.drop_duplicates().head(st_limit_rows).reset_index(drop=True)
@@ -842,13 +871,8 @@ def run_all(
 
 
 if __name__ == "__main__":
-    """
-    Example
-    -------
-    python main.py run_all --states open closed --content_types issues prs --verbose True
-
-    python main.py create_vector_db --states open closed --content_types issues prs
-    """
+    # python main.py run_all --states open closed --content_types issues prs --verbose True
+    # python main.py create_vector_db --states open closed --content_types issues prs
     import sys
 
     if len(sys.argv) == 1:

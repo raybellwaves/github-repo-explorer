@@ -3,6 +3,6 @@ __pycache__/
 *.csv
 *.pkl
 
-*.milvus.db.lock
+*.milvus*.db.lock
 
 .ruff_cache
