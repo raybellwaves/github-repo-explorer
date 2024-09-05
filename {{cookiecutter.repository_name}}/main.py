@@ -541,13 +541,15 @@ def create_vector_db(
     from langchain_openai import OpenAIEmbeddings
     from pymilvus import MilvusClient
 
-    client = MilvusClient(f"{SNAPSHOT_FOLDER}/milvus.db")
     for state in states:
         for content_type in content_types:
             if not os.path.exists(
                 f"{SNAPSHOT_FOLDER}/milvus_{state}_{content_type}.db"
             ):
                 print(f"Creating vector db for {state} {content_type}")
+                client = MilvusClient(
+                    f"{SNAPSHOT_FOLDER}/milvus_{state}_{content_type}.db"
+                )
                 df = pd.read_parquet(
                     f"{SNAPSHOT_FOLDER}/{state}_{content_type}.parquet"
                 )
@@ -844,7 +846,7 @@ def st_dashboard():
             question = f"What issues are similar to {response}?"
             # Look up values for the vector db matching the question
             question_embeddings = embeddings_model.embed_documents([question])
-            client = MilvusClient(f"{SNAPSHOT_FOLDER}/milvus.db")
+            client = MilvusClient(f"{SNAPSHOT_FOLDER}/milvus_open_issues.db")
             res = client.search(
                 collection_name="open_issues",
                 data=question_embeddings,
