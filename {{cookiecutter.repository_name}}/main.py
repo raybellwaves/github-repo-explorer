@@ -533,6 +533,7 @@ def create_vector_db(
     states: list[str] = ["open", "closed"],
     content_types: list[str] = ["issues", "prs"],
 ) -> None:
+    # python main.py create_vector_db --states open closed --content_types issues prs
     if EMBEDDINGS_FRAMEWORK == "None":
         raise ValueError("Embeddings framework cannot be None")
     import os
